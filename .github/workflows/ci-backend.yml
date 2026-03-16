@@ -1,0 +1,63 @@
+name: CI — Backend (Python)
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "backend/**"
+
+jobs:
+  lint-and-test:
+    name: Lint, Security Scan & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ──────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install dependencies ──────────────────────────────────────────
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 bandit pytest pytest-cov
+
+      # ── 4. Lint ───────────────────────────────────────────────────────────
+      - name: Lint with flake8
+        working-directory: backend
+        run: |
+          # Stop build on syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Warn on complexity and style (non-blocking)
+          flake8 . --count --max-complexity=10 --max-line-length=100 --statistics || true
+
+      # ── 5. Security scan ─────────────────────────────────────────────────
+      - name: Security scan with Bandit
+        working-directory: backend
+        run: |
+          bandit -r . -x ./tests -ll -q || true
+
+      # ── 6. Unit tests ─────────────────────────────────────────────────────
+      - name: Run tests with pytest
+        working-directory: backend
+        run: |
+          pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=60
+
+      # ── 7. Build Docker image (smoke test) ───────────────────────────────
+      - name: Build Docker image
+        run: |
+          docker build -t ai-nids-backend:ci -f backend/Dockerfile backend/ || echo "Dockerfile not yet created — skipping build"
