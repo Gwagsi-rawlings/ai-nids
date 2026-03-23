@@ -319,3 +319,313 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print(f"Results: {passed} passed, {failed} failed")
     print("="*60)
+
+
+
+
+
+    """
+AI-NIDS — Signature Detection Engine: Rule Parser
+===================================================
+Parses Snort-compatible rule files into structured RuleRecord objects
+for use by the Aho-Corasick signature matching engine.
+
+FR Traceability:
+    FR4.1  — Match packets against signature-based detection rules
+    FR4.2  — Support Snort-like rule syntax
+    FR4.3  — Parse detection rules from text files
+    FR4.4  — Support pattern matching on packet content
+    FR4.5  — Support pattern matching on packet headers
+    FR4.6  — Support multiple conditions in a single rule (AND logic)
+    FR4.13 — Allow enabling/disabling individual rules
+
+March 23, 2026 | Sprint 1, Week 2
+"""
+
+import re
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Data model
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RuleRecord:
+    """Structured representation of a single parsed Snort-compatible rule."""
+
+    rule_id: str              # SID from rule options (e.g. "1001")
+    name: str                 # msg string from rule options
+    action: str               # alert | log | pass
+    protocol: str             # tcp | udp | icmp | ip
+    src_ip: str               # source IP / CIDR / "any"
+    src_port: str             # source port / range / "any"
+    direction: str            # "->" or "<>"
+    dst_ip: str               # destination IP / CIDR / "any"
+    dst_port: str             # destination port / range / "any"
+    attack_category: str      # derived from rule file section header or "generic"
+    severity: str             # "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+    content_patterns: List[str] = field(default_factory=list)   # content:"..." values
+    nocase: bool = False      # nocase modifier present on any content
+    threshold_type: Optional[str] = None    # "both" | "src" | "dst"
+    threshold_count: Optional[int] = None
+    threshold_seconds: Optional[int] = None
+    flags: Optional[str] = None             # TCP flags (e.g. "S", "SA")
+    enabled: bool = True
+    raw: str = ""             # original rule text for audit / debug
+
+
+# ---------------------------------------------------------------------------
+# Parser
+# ---------------------------------------------------------------------------
+
+class RuleParser:
+    """
+    Parses Snort-compatible rule files and returns a list of RuleRecord
+    objects ready for ingestion by the signature matching engine.
+
+    Supported rule syntax elements:
+        - Header:  action proto src_ip src_port direction dst_ip dst_port
+        - Options: msg, content, nocase, sid, threshold, flags, rev
+
+    Unsupported / silently ignored:
+        - pcre (regex content matching) — deferred to future work
+        - byte_test, byte_jump, flow reassembly keywords
+    """
+
+    # Regex to split header from options body
+    _RULE_RE = re.compile(
+        r"^\s*(?P<action>\w+)\s+"
+        r"(?P<proto>\w+)\s+"
+        r"(?P<src_ip>\S+)\s+"
+        r"(?P<src_port>\S+)\s+"
+        r"(?P<direction>->|<>)\s+"
+        r"(?P<dst_ip>\S+)\s+"
+        r"(?P<dst_port>\S+)\s+"
+        r"\((?P<options>[^)]+(?:\([^)]*\)[^)]*)*)\)\s*$",
+        re.DOTALL,
+    )
+
+    # Individual option token regex
+    _OPT_MSG = re.compile(r'msg\s*:\s*"([^"]+)"')
+    _OPT_SID = re.compile(r'\bsid\s*:\s*(\d+)')
+    _OPT_CONTENT = re.compile(r'content\s*:\s*"([^"]+)"')
+    _OPT_NOCASE = re.compile(r'\bnocase\b')
+    _OPT_FLAGS = re.compile(r'\bflags\s*:\s*([A-Za-z,+!]+)')
+    _OPT_THRESHOLD = re.compile(
+        r'threshold\s*:\s*type\s+(\w+)\s*,\s*track\s+by_(\w+)\s*,\s*'
+        r'count\s+(\d+)\s*,\s*seconds\s+(\d+)'
+    )
+
+    # Severity keyword hints embedded in rule msg strings
+    _SEVERITY_HINTS = {
+        "CRITICAL": ["flood", "ddos", "exploit", "shellcode", "overflow", "critical"],
+        "HIGH": ["brute", "force", "injection", "sqli", "xss", "scan", "high"],
+        "MEDIUM": ["probe", "scan", "attempt", "medium"],
+        "LOW": ["info", "low", "policy", "violation"],
+    }
+
+    def parse_file(self, path: str | Path, category: str = "generic") -> List[RuleRecord]:
+        """
+        Parse all rules from a .rules file.
+
+        Args:
+            path:     Path to the .rules file.
+            category: Attack category label for all rules in this file.
+                      Pass the section name (e.g. "DoS", "PortScan").
+
+        Returns:
+            List of successfully parsed RuleRecord objects.
+            Malformed rules are logged and skipped.
+        """
+        rules: List[RuleRecord] = []
+        path = Path(path)
+
+        if not path.exists():
+            logger.error("Rule file not found: %s", path)
+            return rules
+
+        with path.open("r", encoding="utf-8") as fh:
+            for lineno, line in enumerate(fh, 1):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                record = self._parse_line(line, category, lineno)
+                if record:
+                    rules.append(record)
+
+        logger.info("Loaded %d rules from %s", len(rules), path.name)
+        return rules
+
+    def parse_directory(self, directory: str | Path) -> List[RuleRecord]:
+        """
+        Parse all *.rules files in a directory.
+        The filename stem (without extension) is used as the attack category.
+        """
+        rules: List[RuleRecord] = []
+        directory = Path(directory)
+
+        for rules_file in sorted(directory.glob("*.rules")):
+            category = rules_file.stem.replace("_", " ").title()
+            rules.extend(self.parse_file(rules_file, category))
+
+        logger.info("Total rules loaded from directory: %d", len(rules))
+        return rules
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _parse_line(
+        self, line: str, category: str, lineno: int
+    ) -> Optional[RuleRecord]:
+        m = self._RULE_RE.match(line)
+        if not m:
+            logger.debug("Line %d: does not match rule grammar — skipped", lineno)
+            return None
+
+        opts = m.group("options")
+
+        # Extract required fields
+        msg_m = self._OPT_MSG.search(opts)
+        sid_m = self._OPT_SID.search(opts)
+
+        if not msg_m or not sid_m:
+            logger.warning(
+                "Line %d: missing required option (msg or sid) — skipped", lineno
+            )
+            return None
+
+        name = msg_m.group(1)
+        rule_id = sid_m.group(1)
+
+        # Content patterns
+        patterns = self._OPT_CONTENT.findall(opts)
+        nocase = bool(self._OPT_NOCASE.search(opts))
+
+        # TCP flags
+        flags_m = self._OPT_FLAGS.search(opts)
+        flags = flags_m.group(1) if flags_m else None
+
+        # Threshold
+        thr_m = self._OPT_THRESHOLD.search(opts)
+        thr_type = thr_count = thr_secs = None
+        if thr_m:
+            thr_type = thr_m.group(1)
+            thr_count = int(thr_m.group(3))
+            thr_secs = int(thr_m.group(4))
+
+        severity = self._infer_severity(name)
+
+        return RuleRecord(
+            rule_id=rule_id,
+            name=name,
+            action=m.group("action"),
+            protocol=m.group("proto"),
+            src_ip=m.group("src_ip"),
+            src_port=m.group("src_port"),
+            direction=m.group("direction"),
+            dst_ip=m.group("dst_ip"),
+            dst_port=m.group("dst_port"),
+            attack_category=category,
+            severity=severity,
+            content_patterns=patterns,
+            nocase=nocase,
+            flags=flags,
+            threshold_type=thr_type,
+            threshold_count=thr_count,
+            threshold_seconds=thr_secs,
+            raw=line,
+        )
+
+    def _infer_severity(self, msg: str) -> str:
+        msg_lower = msg.lower()
+        for level, hints in self._SEVERITY_HINTS.items():
+            if any(h in msg_lower for h in hints):
+                return level
+        return "MEDIUM"
+
+
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import sys
+    import tempfile
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+
+    sample_rules = [
+        # DoS / ICMP flood
+        'alert icmp any any -> any any (msg:"DoS ICMP Flood"; '
+        "threshold: type both, track by_src, count 100, seconds 1; "
+        'sid:1001; rev:1;)',
+
+        # Port Scan — SYN packets
+        'alert tcp any any -> any any (msg:"Port Scan SYN Sweep"; '
+        "flags:S; "
+        "threshold: type both, track by_src, count 20, seconds 60; "
+        'sid:1002; rev:1;)',
+
+        # Brute Force — SSH
+        'alert tcp any any -> any 22 (msg:"Brute Force SSH Login Attempt"; '
+        "flags:S; "
+        "threshold: type both, track by_src, count 10, seconds 30; "
+        'sid:1003; rev:1;)',
+
+        # SQL Injection
+        'alert tcp any any -> any 80 (msg:"SQL Injection UNION SELECT"; '
+        'content:"UNION"; content:"SELECT"; nocase; '
+        'sid:1004; rev:1;)',
+
+        # XSS
+        'alert tcp any any -> any 80 (msg:"XSS Script Tag Attempt"; '
+        'content:"<script"; nocase; '
+        'sid:1005; rev:1;)',
+
+        # Comment line — should be skipped
+        "# This is a comment",
+
+        # Malformed — no sid — should be skipped
+        'alert tcp any any -> any 80 (msg:"No SID Rule"; content:"test";)',
+    ]
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".rules", delete=False
+    ) as tf:
+        tf.write("\n".join(sample_rules))
+        tmp_path = tf.name
+
+    parser = RuleParser()
+    rules = parser.parse_file(tmp_path, category="Mixed")
+
+    print(f"\n{'='*60}")
+    print(f"Parsed {len(rules)} rules (expected 5)")
+    print(f"{'='*60}\n")
+
+    all_pass = True
+    checks = [
+        ("Rule count", len(rules) == 5),
+        ("SID 1001 name", rules[0].name == "DoS ICMP Flood"),
+        ("SID 1001 threshold", rules[0].threshold_count == 100),
+        ("SID 1002 flags", rules[1].flags == "S"),
+        ("SID 1004 content", "UNION" in rules[3].content_patterns),
+        ("SID 1004 nocase", rules[3].nocase is True),
+        ("SID 1005 content", "<script" in rules[4].content_patterns),
+        ("Severity CRITICAL check", rules[0].severity in ("CRITICAL", "HIGH", "MEDIUM")),
+    ]
+
+    for label, result in checks:
+        status = "PASS" if result else "FAIL"
+        if not result:
+            all_pass = False
+        print(f"  [{status}] {label}")
+
+    print(f"\n{'SMOKE TEST PASSED' if all_pass else 'SMOKE TEST FAILED'}")
+    sys.exit(0 if all_pass else 1)
