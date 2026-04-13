@@ -1,0 +1,34 @@
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: nids_postgres
+    environment:
+      POSTGRES_USER: nids_user
+      POSTGRES_PASSWORD: nids_password
+      POSTGRES_DB: nids_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: nids_redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    container_name: nids_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://nids_user:nids_password@postgres:5432/nids_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:
