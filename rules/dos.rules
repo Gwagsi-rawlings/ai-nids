@@ -1,0 +1,44 @@
+# AI-NIDS — DoS / DDoS Detection Rules
+# FR4.7 — The system shall detect DoS attacks using signature rules
+# Severity: CRITICAL / HIGH
+# March 23, 2026
+
+# ── ICMP ────────────────────────────────────────────────────────────────────
+
+# ICMP flood (ping flood) — high-rate ICMP to any destination
+alert icmp any any -> any any (msg:"DoS ICMP Flood High Rate"; threshold: type both, track by_src, count 100, seconds 1; sid:2001; rev:1;)
+
+# ICMP oversized ping (ping of death pattern)
+alert icmp any any -> any any (msg:"DoS ICMP Oversized Packet"; itype:8; sid:2002; rev:1;)
+
+# ── TCP SYN Flood ────────────────────────────────────────────────────────────
+
+# SYN flood — high-rate half-open connections
+alert tcp any any -> any any (msg:"DoS TCP SYN Flood"; flags:S; threshold: type both, track by_src, count 200, seconds 1; sid:2003; rev:1;)
+
+# SYN flood to web port specifically
+alert tcp any any -> any 80 (msg:"DoS TCP SYN Flood HTTP"; flags:S; threshold: type both, track by_src, count 150, seconds 1; sid:2004; rev:1;)
+
+# SYN flood to HTTPS
+alert tcp any any -> any 443 (msg:"DoS TCP SYN Flood HTTPS"; flags:S; threshold: type both, track by_src, count 150, seconds 1; sid:2005; rev:1;)
+
+# ── UDP Flood ────────────────────────────────────────────────────────────────
+
+# UDP flood — high-rate UDP to any destination
+alert udp any any -> any any (msg:"DoS UDP Flood High Rate"; threshold: type both, track by_src, count 500, seconds 1; sid:2006; rev:1;)
+
+# ── HTTP Application Layer DoS ───────────────────────────────────────────────
+
+# Slowloris — incomplete HTTP headers keeping connections open
+alert tcp any any -> any 80 (msg:"DoS Slowloris Incomplete Header"; content:"GET"; content:"HTTP/1."; nocase; threshold: type both, track by_src, count 50, seconds 10; sid:2007; rev:1;)
+
+# HTTP GET flood — high-rate GET requests
+alert tcp any any -> any 80 (msg:"DoS HTTP GET Flood"; content:"GET"; nocase; threshold: type both, track by_src, count 200, seconds 10; sid:2008; rev:1;)
+
+# GoldenEye / HULK pattern — keep-alive + cache-control manipulation
+alert tcp any any -> any 80 (msg:"DoS HTTP Keep-Alive Flood"; content:"Keep-Alive"; content:"no-cache"; nocase; threshold: type both, track by_src, count 100, seconds 5; sid:2009; rev:1;)
+
+# ── RST Flood ────────────────────────────────────────────────────────────────
+
+# TCP RST flood — used to disrupt existing sessions
+alert tcp any any -> any any (msg:"DoS TCP RST Flood"; flags:R; threshold: type both, track by_src, count 100, seconds 1; sid:2010; rev:1;)

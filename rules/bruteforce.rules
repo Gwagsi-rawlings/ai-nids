@@ -1,0 +1,50 @@
+# AI-NIDS — Brute Force Authentication Attack Detection Rules
+# FR4.12 — The system shall detect brute force authentication attempts
+# Severity: HIGH
+# March 23, 2026
+
+# ── SSH Brute Force ───────────────────────────────────────────────────────────
+
+# SSH repeated connection attempts from same source
+alert tcp any any -> any 22 (msg:"Brute Force SSH Login Attempt"; flags:S; threshold: type both, track by_src, count 10, seconds 30; sid:4001; rev:1;)
+
+# SSH banner grab — single tool connecting repeatedly
+alert tcp any any -> any 22 (msg:"Brute Force SSH Aggressive"; flags:S; threshold: type both, track by_src, count 30, seconds 60; sid:4002; rev:1;)
+
+# ── FTP Brute Force ───────────────────────────────────────────────────────────
+
+# FTP login attempts
+alert tcp any any -> any 21 (msg:"Brute Force FTP Login Attempt"; flags:S; threshold: type both, track by_src, count 10, seconds 30; sid:4003; rev:1;)
+
+# FTP 530 Login incorrect — response from server
+alert tcp any 21 -> any any (msg:"Brute Force FTP Login Failure"; content:"530"; sid:4004; rev:1;)
+
+# ── HTTP Basic Auth Brute Force ───────────────────────────────────────────────
+
+# HTTP POST to login endpoints — repeated from same IP
+alert tcp any any -> any 80 (msg:"Brute Force HTTP POST Login"; content:"POST"; content:"/login"; nocase; threshold: type both, track by_src, count 20, seconds 60; sid:4005; rev:1;)
+
+alert tcp any any -> any 80 (msg:"Brute Force HTTP POST Auth"; content:"POST"; content:"/auth"; nocase; threshold: type both, track by_src, count 20, seconds 60; sid:4006; rev:1;)
+
+# HTTP 401 Unauthorized repeated — server-side evidence
+alert tcp any 80 -> any any (msg:"Brute Force HTTP 401 Repeated"; content:"401"; threshold: type both, track by_dst, count 15, seconds 60; sid:4007; rev:1;)
+
+# ── HTTPS Login Brute Force ───────────────────────────────────────────────────
+
+# High-rate connections to HTTPS from same source
+alert tcp any any -> any 443 (msg:"Brute Force HTTPS Connection Flood"; flags:S; threshold: type both, track by_src, count 50, seconds 30; sid:4008; rev:1;)
+
+# ── RDP Brute Force ───────────────────────────────────────────────────────────
+
+# RDP repeated connection attempts
+alert tcp any any -> any 3389 (msg:"Brute Force RDP Login Attempt"; flags:S; threshold: type both, track by_src, count 10, seconds 60; sid:4009; rev:1;)
+
+# ── SMTP Auth Brute Force ─────────────────────────────────────────────────────
+
+# SMTP AUTH command repeated — email credential stuffing
+alert tcp any any -> any 25 (msg:"Brute Force SMTP AUTH Attempt"; content:"AUTH"; nocase; threshold: type both, track by_src, count 10, seconds 60; sid:4010; rev:1;)
+
+# ── Database Authentication ───────────────────────────────────────────────────
+
+# MySQL repeated connection attempts
+alert tcp any any -> any 3306 (msg:"Brute Force MySQL Login Attempt"; flags:S; threshold: type both, track by_src, count 10, seconds 30; sid:4011; rev:1;)
