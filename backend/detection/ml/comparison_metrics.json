@@ -1,0 +1,97 @@
+{
+  "comparison_date": "2026-03-30",
+  "rf_per_class_roc_auc": {
+    "BENIGN": {
+      "fpr": 0.058095514897141216,
+      "tpr": 0.9281488238108595,
+      "auc": 0.9977
+    },
+    "Botnet": {
+      "fpr": 0.020260851364991395,
+      "tpr": 0.8631424685446999,
+      "auc": 0.993
+    },
+    "BruteForce": {
+      "fpr": 0.035370312721537525,
+      "tpr": 0.9697877579133432,
+      "auc": 0.9981
+    },
+    "DDoS": {
+      "fpr": 0.006781482258492427,
+      "tpr": 0.9816804606247912,
+      "auc": 1.0
+    },
+    "DoS": {
+      "fpr": 0.02415236236620516,
+      "tpr": 0.9252528146977932,
+      "auc": 0.999
+    },
+    "Infiltration": {
+      "fpr": 0.02281822503109742,
+      "tpr": 0.946031746031746,
+      "auc": 1.0
+    },
+    "PortScan": {
+      "fpr": 0.00944917733619034,
+      "tpr": 0.9144338797278014,
+      "auc": 1.0
+    },
+    "WebAttack": {
+      "fpr": 0.03306398617817902,
+      "tpr": 0.9367970357535157,
+      "auc": 0.9958
+    }
+  },
+  "if_binary_roc": {
+    "binary_auc": 0.7193,
+    "op_fpr": 1.0,
+    "op_tpr": 1.0
+  },
+  "overlay": {
+    "rf_macro_auc": 0.9979,
+    "if_binary_auc": 0.7193
+  },
+  "per_class_detection_rates": {
+    "Botnet": {
+      "rf": 0.8702,
+      "if": 0.0076
+    },
+    "BruteForce": {
+      "rf": 0.9855,
+      "if": 0.0
+    },
+    "DDoS": {
+      "rf": 0.9994,
+      "if": 0.0
+    },
+    "DoS": {
+      "rf": 0.9949,
+      "if": 0.1772
+    },
+    "Infiltration": {
+      "rf": 0.7143,
+      "if": 0.0
+    },
+    "PortScan": {
+      "rf": 0.9996,
+      "if": 0.0002
+    },
+    "WebAttack": {
+      "rf": 0.9083,
+      "if": 0.0
+    }
+  },
+  "figures": {
+    "fig1_rf_per_class_roc": "/home/rawlings/ai-nids/backend/detection/ml/figures/fig_4_11_1_rf_roc.png",
+    "fig2_if_binary_roc": "/home/rawlings/ai-nids/backend/detection/ml/figures/fig_4_11_2_if_roc.png",
+    "fig3_overlay_roc": "/home/rawlings/ai-nids/backend/detection/ml/figures/fig_4_11_3_overlay_roc.png",
+    "fig4_detection_rate_bar": "/home/rawlings/ai-nids/backend/detection/ml/figures/fig_4_11_4_detection_rates.png"
+  },
+  "key_findings": {
+    "rf_macro_auc": 0.9979,
+    "if_binary_auc": 0.7193,
+    "only_if_beats_rf": "Infiltration (IF TPR=0.857 vs RF TPR=0.714)",
+    "rf_dominates_on": "DoS, DDoS, PortScan, BruteForce, WebAttack, Botnet",
+    "if_advantage": "Lower FPR (0.0501 vs 0.0723) + zero-day structural capability"
+  }
+}

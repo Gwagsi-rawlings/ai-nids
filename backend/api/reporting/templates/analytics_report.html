@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% set title = "Threat Analytics Report" %}
+
+{% block content %}
+
+<!-- ── Analytics overview callout ────────────────────────────────── -->
+<h2>Analytics Overview</h2>
+
+<div class="callout">
+  <strong>Report Scope:</strong> Deep analytics on detection engine performance, threat distribution,
+  temporal patterns, and confidence scoring for the period
+  <strong>{{ data.period_start | fmt_date }}</strong> to <strong>{{ data.period_end | fmt_date }}</strong>.
+  Total events analysed: <strong>{{ data.severity.total }}</strong>.
+  Average ensemble confidence: <strong>{{ data.average_confidence_score | score }}</strong>.
+</div>
+
+<!-- ── Top-level KPIs ─────────────────────────────────────────────── -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value kpi-total">{{ data.severity.total }}</div>
+    <div class="kpi-label">Total Alerts</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#1F4E79;">{{ data.average_confidence_score | score }}</div>
+    <div class="kpi-label">Avg Confidence</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#27ae60;">{{ (data.resolution_rate * 100) | round(1) }}%</div>
+    <div class="kpi-label">Resolution Rate</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#c0392b;">{{ (data.engine_stats.false_positive_rate * 100) | round(2) }}%</div>
+    <div class="kpi-label">FPR</div>
+  </div>
+  {% if data.peak_alert_hour is not none %}
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#8e44ad;">{{ "%02d:00" | format(data.peak_alert_hour) }}</div>
+    <div class="kpi-label">Peak Hour (UTC)</div>
+  </div>
+  {% endif %}
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#16a085;">{{ data.engine_stats.both_triggered }}</div>
+    <div class="kpi-label">Hybrid Detections</div>
+  </div>
+</div>
+
+<!-- ── Detection engine performance ──────────────────────────────── -->
+<h2>Detection Engine Performance</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Engine</th>
+      <th>Weight</th>
+      <th>Alerts Triggered</th>
+      <th>Share of Detections</th>
+      <th>Distribution</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set eng_total = (data.engine_stats.signature_triggered +
+                        data.engine_stats.ml_triggered +
+                        data.engine_stats.both_triggered) or 1 %}
+    {% for name, weight, cnt, colour in [
+        ('Signature Engine',   '0.40', data.engine_stats.signature_triggered, '#8e44ad'),
+        ('Random Forest',      '0.35', data.engine_stats.ml_triggered,        '#16a085'),
+        ('Hybrid (Both)',      '—',    data.engine_stats.both_triggered,       '#1F4E79'),
+    ] %}
+    <tr>
+      <td><strong>{{ name }}</strong></td>
+      <td style="font-family:monospace;">{{ weight }}</td>
+      <td style="font-weight:700;color:{{ colour }};">{{ cnt }}</td>
+      <td>{{ (cnt / eng_total * 100) | round(1) }}%</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:{{ [cnt / eng_total * 100, 100] | min }}%;background:{{ colour }};"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    <tr style="background:#f8fafc;">
+      <td colspan="2" style="color:#7f8c8d;font-style:italic;">False Positives</td>
+      <td style="color:#c0392b;font-weight:700;">{{ data.engine_stats.false_positive_count }}</td>
+      <td style="color:#c0392b;">{{ (data.engine_stats.false_positive_rate * 100) | round(2) }}%</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:{{ [data.engine_stats.false_positive_rate * 100, 100] | min }}%;background:#c0392b;"></div>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>NFR20 Status:</strong>
+  FPR = <strong>{{ (data.engine_stats.false_positive_rate * 100) | round(2) }}%</strong>
+  (target ≤ 5.00% per NFR20.2)
+  {% if data.engine_stats.false_positive_rate <= 0.05 %}
+    — <span style="color:#27ae60;">✓ TARGET MET</span>
+  {% else %}
+    — <span style="color:#c0392b;">✗ TARGET EXCEEDED — review ensemble weights</span>
+  {% endif %}.
+  Hybrid (multi-engine) detections: <strong>{{ data.engine_stats.both_triggered }}</strong>
+  ({{ (data.engine_stats.both_triggered / eng_total * 100) | round(1) }}% of all alerts triggered
+  by corroboration from ≥ 2 engines, consistent with the 0.50 ensemble threshold).
+</div>
+
+<!-- ── Top attack categories ──────────────────────────────────────── -->
+<h2>Attack Category Distribution  <span style="font-weight:400;font-size:12px;color:#7f8c8d;">(FR12.3)</span></h2>
+{% if data.top_attack_types %}
+<table>
+  <thead>
+    <tr><th>#</th><th>Category</th><th>Count</th><th>Share</th><th>Distribution</th></tr>
+  </thead>
+  <tbody>
+    {% for cat in data.top_attack_types %}
+    <tr>
+      <td style="color:#7f8c8d;">{{ loop.index }}</td>
+      <td><strong>{{ cat.name }}</strong></td>
+      <td style="font-weight:700;color:#1F4E79;">{{ cat.count }}</td>
+      <td>{{ cat.percentage | pct }}</td>
+      <td>
+        <div class="bar-wrap" style="width:180px;">
+          <div class="bar-fill" style="width:{{ cat.percentage }}%;"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#7f8c8d;font-style:italic;">No attack category data for this period.</p>
+{% endif %}
+
+<!-- ── Top source IPs ─────────────────────────────────────────────── -->
+<h2>Top Threat Sources  <span style="font-weight:400;font-size:12px;color:#7f8c8d;">(FR12.4)</span></h2>
+{% if data.top_source_ips %}
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>Source IP</th><th>Alerts</th>
+      <th>Primary Attack</th><th>Active Window</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ip in data.top_source_ips %}
+    <tr>
+      <td style="color:#7f8c8d;">{{ loop.index }}</td>
+      <td style="font-family:monospace;font-size:12px;">{{ ip.ip }}</td>
+      <td style="font-weight:700;color:#c0392b;">{{ ip.count }}</td>
+      <td>{{ ip.top_attack }}</td>
+      <td style="font-size:11.5px;color:#7f8c8d;">
+        {{ ip.first_seen | fmt_dt }} →<br>{{ ip.last_seen | fmt_dt }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#7f8c8d;font-style:italic;">No source IP data for this period.</p>
+{% endif %}
+
+<!-- ── Daily timeline ─────────────────────────────────────────────── -->
+<h2>Daily Alert Timeline  <span style="font-weight:400;font-size:12px;color:#7f8c8d;">(FR12.5)</span></h2>
+{% if data.daily_timeline %}
+<table class="timeline-table">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th style="color:#c0392b;">Critical</th>
+      <th style="color:#e67e22;">High</th>
+      <th style="color:#d4ac0d;">Medium</th>
+      <th style="color:#2980b9;">Low</th>
+      <th>Total</th>
+      <th>Stacked View</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set max_day = namespace(val=1) %}
+    {% for d in data.daily_timeline %}
+      {% set dt = d.critical + d.high + d.medium + d.low %}
+      {% if dt > max_day.val %}{% set max_day.val = dt %}{% endif %}
+    {% endfor %}
+
+    {% for day in data.daily_timeline %}
+    {% set day_total = day.critical + day.high + day.medium + day.low %}
+    <tr>
+      <td style="font-family:monospace;font-size:12px;">{{ day.date }}</td>
+      <td style="color:#c0392b;font-weight:{% if day.critical > 0 %}700{% else %}400{% endif %};">{{ day.critical }}</td>
+      <td style="color:#e67e22;">{{ day.high }}</td>
+      <td style="color:#d4ac0d;">{{ day.medium }}</td>
+      <td style="color:#2980b9;">{{ day.low }}</td>
+      <td style="font-weight:700;">{{ day_total }}</td>
+      <td class="bar-cell">
+        {% if day_total > 0 %}
+        <div class="stacked-bar" style="width:{{ [day_total / max_day.val * 200, 200] | min | int }}px;">
+          {% if day.critical %}<div class="seg" style="flex:{{ day.critical }};background:#c0392b;"></div>{% endif %}
+          {% if day.high     %}<div class="seg" style="flex:{{ day.high     }};background:#e67e22;"></div>{% endif %}
+          {% if day.medium   %}<div class="seg" style="flex:{{ day.medium   }};background:#d4ac0d;"></div>{% endif %}
+          {% if day.low      %}<div class="seg" style="flex:{{ day.low      }};background:#2980b9;"></div>{% endif %}
+        </div>
+        {% else %}
+        <span style="color:#bdc3c7;font-size:11px;">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Legend -->
+<div style="display:flex;gap:16px;margin-top:8px;font-size:11.5px;">
+  <span><span style="display:inline-block;width:10px;height:10px;background:#c0392b;border-radius:2px;margin-right:4px;"></span>Critical</span>
+  <span><span style="display:inline-block;width:10px;height:10px;background:#e67e22;border-radius:2px;margin-right:4px;"></span>High</span>
+  <span><span style="display:inline-block;width:10px;height:10px;background:#d4ac0d;border-radius:2px;margin-right:4px;"></span>Medium</span>
+  <span><span style="display:inline-block;width:10px;height:10px;background:#2980b9;border-radius:2px;margin-right:4px;"></span>Low</span>
+</div>
+{% else %}
+<p style="color:#7f8c8d;font-style:italic;">No timeline data for this period.</p>
+{% endif %}
+
+<!-- ── Ensemble model NFR summary ─────────────────────────────────── -->
+<h2>Ensemble Model NFR20 Summary</h2>
+<table>
+  <thead>
+    <tr><th>NFR</th><th>Requirement</th><th>Measured</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>NFR20.2</strong></td>
+      <td>False Positive Rate ≤ 5%</td>
+      <td>{{ (data.engine_stats.false_positive_rate * 100) | round(2) }}%</td>
+      <td>
+        {% if data.engine_stats.false_positive_rate <= 0.05 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>NFR20.3</strong></td>
+      <td>Avg Confidence ≥ 0.90 on Critical alerts</td>
+      <td>{{ data.average_confidence_score | score }}</td>
+      <td>
+        {% if data.average_confidence_score >= 0.90 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% elif data.average_confidence_score >= 0.70 %}
+          <span style="color:#e67e22;font-weight:700;">⚠ REVIEW</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>NFR20.5</strong></td>
+      <td>Hybrid detections show multi-engine corroboration</td>
+      <td>{{ data.engine_stats.both_triggered }} hybrid events</td>
+      <td>
+        {% if data.engine_stats.both_triggered > 0 %}
+          <span style="color:#27ae60;font-weight:700;">✓ ACTIVE</span>
+        {% else %}
+          <span style="color:#e67e22;font-weight:700;">⚠ CHECK</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>NFR8.1</strong></td>
+      <td>Alert resolution rate ≥ 80%</td>
+      <td>{{ (data.resolution_rate * 100) | round(1) }}%</td>
+      <td>
+        {% if data.resolution_rate >= 0.80 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% elif data.resolution_rate >= 0.60 %}
+          <span style="color:#e67e22;font-weight:700;">⚠ MARGINAL</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+{% endblock %}

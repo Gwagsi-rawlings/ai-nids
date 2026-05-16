@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% set title = "Compliance Report" %}
+
+{% block content %}
+
+<!-- ── Compliance overview ────────────────────────────────────────── -->
+<h2>Compliance Overview</h2>
+
+<div class="callout">
+  <strong>Reporting Framework:</strong> This report supports PCI-DSS, HIPAA, and ISO 27001 audit requirements
+  by documenting security event logging, alert acknowledgement rates, and audit trail completeness
+  for the period <strong>{{ data.period_start | fmt_date }}</strong> to <strong>{{ data.period_end | fmt_date }}</strong>.
+  <br><br>
+  <strong>Traceability:</strong> FR13.1 (PCI-DSS) · FR13.2 (HIPAA) · FR13.3 (ISO 27001) ·
+  FR13.4 (Audit Trail) · FR13.5 (Data Retention — {{ data.compliance.data_retained_days }} days)
+</div>
+
+<!-- ── KPI row ────────────────────────────────────────────────────── -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value kpi-total">{{ data.severity.total }}</div>
+    <div class="kpi-label">Security Events</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#8e44ad;">{{ data.compliance.audit_entries }}</div>
+    <div class="kpi-label">Audit Log Entries</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#27ae60;">{{ data.compliance.acknowledged_alerts }}</div>
+    <div class="kpi-label">Acknowledged</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#c0392b;">{{ data.compliance.unacknowledged_alerts }}</div>
+    <div class="kpi-label">Unacknowledged</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#2980b9;">{{ data.compliance.mean_acknowledgement_minutes }}</div>
+    <div class="kpi-label">Avg Ack (min)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#1F4E79;">{{ data.compliance.data_retained_days }}d</div>
+    <div class="kpi-label">Retention Policy</div>
+  </div>
+</div>
+
+<!-- ── Control effectiveness table ───────────────────────────────── -->
+<h2>Control Effectiveness Summary</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Control Area</th>
+      <th>Requirement</th>
+      <th>Measured Value</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set ack_rate = (data.compliance.acknowledged_alerts / (data.severity.total or 1) * 100) | round(1) %}
+    {% set fpr_pct  = (data.engine_stats.false_positive_rate * 100) | round(2) %}
+
+    <tr>
+      <td><strong>Intrusion Detection</strong></td>
+      <td>Continuous monitoring active</td>
+      <td>{{ data.severity.total }} events detected</td>
+      <td>
+        {% if data.severity.total >= 0 %}
+          <span style="color:#27ae60;font-weight:700;">✓ ACTIVE</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ NO DATA</span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Alert Acknowledgement</strong></td>
+      <td>≥ 80% alerts acknowledged</td>
+      <td>{{ ack_rate }}% ({{ data.compliance.acknowledged_alerts }} / {{ data.severity.total }})</td>
+      <td>
+        {% if ack_rate >= 80 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% elif ack_rate >= 60 %}
+          <span style="color:#e67e22;font-weight:700;">⚠ PARTIAL</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>False Positive Rate</strong></td>
+      <td>≤ 5% FPR (NFR20.2)</td>
+      <td>{{ fpr_pct }}%</td>
+      <td>
+        {% if fpr_pct <= 5 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Audit Logging</strong></td>
+      <td>All actions logged (FR13.4)</td>
+      <td>{{ data.compliance.audit_entries }} audit entries</td>
+      <td>
+        {% if data.compliance.audit_entries > 0 %}
+          <span style="color:#27ae60;font-weight:700;">✓ ACTIVE</span>
+        {% else %}
+          <span style="color:#e67e22;font-weight:700;">⚠ CHECK</span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Data Retention</strong></td>
+      <td>≥ 90 days (FR13.5)</td>
+      <td>{{ data.compliance.data_retained_days }} days configured</td>
+      <td>
+        {% if data.compliance.data_retained_days >= 90 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Mean Response Time</strong></td>
+      <td>Acknowledgement ≤ 60 min</td>
+      <td>{{ data.compliance.mean_acknowledgement_minutes }} min average</td>
+      <td>
+        {% if data.compliance.mean_acknowledgement_minutes <= 60 %}
+          <span style="color:#27ae60;font-weight:700;">✓ PASS</span>
+        {% elif data.compliance.mean_acknowledgement_minutes <= 120 %}
+          <span style="color:#e67e22;font-weight:700;">⚠ MARGINAL</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:700;">✗ FAIL</span>
+        {% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ── Framework mapping ──────────────────────────────────────────── -->
+<h2>Framework Control Mapping</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Framework</th>
+      <th>Control Reference</th>
+      <th>AI-NIDS Capability</th>
+      <th>Evidence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>PCI-DSS</strong></td>
+      <td>10.2 — Log all access to system components</td>
+      <td>Audit log (FR13.4) · Alert persistence (FR7.8)</td>
+      <td>{{ data.compliance.audit_entries }} audit entries logged</td>
+    </tr>
+    <tr>
+      <td><strong>PCI-DSS</strong></td>
+      <td>11.5 — Deploy IDS to monitor critical files</td>
+      <td>Hybrid ensemble detection (FR4–FR6)</td>
+      <td>{{ data.severity.total }} events detected</td>
+    </tr>
+    <tr>
+      <td><strong>HIPAA</strong></td>
+      <td>§ 164.312(b) — Audit controls</td>
+      <td>Immutable audit_log table (INSERT-only)</td>
+      <td>{{ data.compliance.audit_entries }} immutable entries</td>
+    </tr>
+    <tr>
+      <td><strong>HIPAA</strong></td>
+      <td>§ 164.308(a)(6) — Security incident procedures</td>
+      <td>Alert management workflow (FR9) · Escalation (US-3.7)</td>
+      <td>{{ ack_rate }}% acknowledgement rate</td>
+    </tr>
+    <tr>
+      <td><strong>ISO 27001</strong></td>
+      <td>A.12.4 — Logging and monitoring</td>
+      <td>Real-time packet capture + alert pipeline (FR1–FR7)</td>
+      <td>Continuous monitoring active</td>
+    </tr>
+    <tr>
+      <td><strong>ISO 27001</strong></td>
+      <td>A.16.1 — Management of IS incidents</td>
+      <td>Severity classification · Deduplication · Correlation (FR7–FR8)</td>
+      <td>{{ data.severity.critical + data.severity.high }} high-priority events managed</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ── Severity breakdown for compliance ─────────────────────────── -->
+<h2>Security Event Summary by Severity</h2>
+<table>
+  <thead>
+    <tr><th>Severity</th><th>Count</th><th>Proportion</th><th>Distribution</th></tr>
+  </thead>
+  <tbody>
+    {% set total = data.severity.total or 1 %}
+    {% for sev, cnt in [
+        ('CRITICAL', data.severity.critical),
+        ('HIGH',     data.severity.high),
+        ('MEDIUM',   data.severity.medium),
+        ('LOW',      data.severity.low),
+    ] %}
+    <tr>
+      <td><span class="badge badge-{{ sev }}">{{ sev }}</span></td>
+      <td style="font-weight:700;">{{ cnt }}</td>
+      <td>{{ (cnt / total * 100) | round(1) }}%</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:{{ [cnt / total * 100, 100] | min }}%;
+               background:{{ severity_colour(sev) }};"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="callout" style="margin-top:24px;">
+  <strong>Auditor Note:</strong> This report is system-generated by AI-NIDS and reflects data persisted in
+  the PostgreSQL alerts and audit_log tables for the stated period. All timestamps are UTC.
+  Data retention is configured to <strong>{{ data.compliance.data_retained_days }} days</strong>.
+  For forensic investigation, raw flow records are retained for 30 days and raw packet data for 7 days
+  per the Database Design Document (Feb 26, 2026).
+</div>
+
+{% endblock %}

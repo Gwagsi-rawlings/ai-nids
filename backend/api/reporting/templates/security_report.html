@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% set title = "Security Summary Report" %}
+
+{% block content %}
+
+<!-- ── Executive KPI row ──────────────────────────────────────────── -->
+<h2>Executive Summary</h2>
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value kpi-total">{{ data.severity.total }}</div>
+    <div class="kpi-label">Total Alerts</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value kpi-critical">{{ data.severity.critical }}</div>
+    <div class="kpi-label">Critical</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value kpi-high">{{ data.severity.high }}</div>
+    <div class="kpi-label">High</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value kpi-medium">{{ data.severity.medium }}</div>
+    <div class="kpi-label">Medium</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value kpi-low">{{ data.severity.low }}</div>
+    <div class="kpi-label">Low</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#27ae60;">{{ (data.resolution_rate * 100) | round(1) }}%</div>
+    <div class="kpi-label">Resolution Rate</div>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>Key Finding:</strong>
+  {% if data.severity.critical > 0 %}
+    {{ data.severity.critical }} critical alert{{ 's' if data.severity.critical != 1 }} detected during the reporting period.
+    {% if data.top_attack_types %}
+      The dominant attack type was <strong>{{ data.top_attack_types[0].name }}</strong>
+      ({{ data.top_attack_types[0].count }} events, {{ data.top_attack_types[0].percentage | pct }}).
+    {% endif %}
+  {% else %}
+    No critical alerts detected during the reporting period.
+    {% if data.severity.total > 0 %}
+      {{ data.severity.total }} lower-severity alerts were recorded and should be reviewed.
+    {% endif %}
+  {% endif %}
+  Mean ensemble confidence score: <strong>{{ data.average_confidence_score | score }}</strong>.
+</div>
+
+<!-- ── Severity breakdown ─────────────────────────────────────────── -->
+<h2>Alert Severity Breakdown</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Severity</th>
+      <th>Count</th>
+      <th>Proportion</th>
+      <th>Distribution</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set total = data.severity.total or 1 %}
+    {% for sev, cnt, css in [
+        ('CRITICAL', data.severity.critical, 'kpi-critical'),
+        ('HIGH',     data.severity.high,     'kpi-high'),
+        ('MEDIUM',   data.severity.medium,   'kpi-medium'),
+        ('LOW',      data.severity.low,      'kpi-low'),
+    ] %}
+    <tr>
+      <td><span class="badge badge-{{ sev }}">{{ sev }}</span></td>
+      <td class="{{ css }}" style="font-weight:700;">{{ cnt }}</td>
+      <td>{{ (cnt / total * 100) | round(1) }}%</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:{{ [cnt / total * 100, 100] | min }}%;
+               background:{{ severity_colour(sev) }};"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- ── Top attack types ───────────────────────────────────────────── -->
+<h2>Top Attack Categories  <span style="font-weight:400;font-size:12px;color:#7f8c8d;">(FR12.3)</span></h2>
+{% if data.top_attack_types %}
+<table>
+  <thead>
+    <tr><th>#</th><th>Attack Category</th><th>Alert Count</th><th>Share</th><th>Distribution</th></tr>
+  </thead>
+  <tbody>
+    {% for cat in data.top_attack_types %}
+    <tr>
+      <td style="color:#7f8c8d;">{{ loop.index }}</td>
+      <td><strong>{{ cat.name }}</strong></td>
+      <td>{{ cat.count }}</td>
+      <td>{{ cat.percentage | pct }}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:{{ cat.percentage }}%;"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#7f8c8d;font-style:italic;">No attack data for this period.</p>
+{% endif %}
+
+<!-- ── Top source IPs ─────────────────────────────────────────────── -->
+<h2>Top Source IPs  <span style="font-weight:400;font-size:12px;color:#7f8c8d;">(FR12.4)</span></h2>
+{% if data.top_source_ips %}
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>Source IP</th><th>Alerts</th>
+      <th>Primary Attack</th><th>First Seen</th><th>Last Seen</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ip in data.top_source_ips %}
+    <tr>
+      <td style="color:#7f8c8d;">{{ loop.index }}</td>
+      <td style="font-family:monospace;">{{ ip.ip }}</td>
+      <td style="font-weight:700;color:#1F4E79;">{{ ip.count }}</td>
+      <td>{{ ip.top_attack }}</td>
+      <td style="font-size:11.5px;color:#7f8c8d;">{{ ip.first_seen | fmt_dt }}</td>
+      <td style="font-size:11.5px;color:#7f8c8d;">{{ ip.last_seen  | fmt_dt }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#7f8c8d;font-style:italic;">No source IP data for this period.</p>
+{% endif %}
+
+<!-- ── Detection engine breakdown ────────────────────────────────── -->
+<h2>Detection Engine Breakdown</h2>
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#8e44ad;">{{ data.engine_stats.signature_triggered }}</div>
+    <div class="kpi-label">Signature Only</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#16a085;">{{ data.engine_stats.ml_triggered }}</div>
+    <div class="kpi-label">ML Only</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#1F4E79;">{{ data.engine_stats.both_triggered }}</div>
+    <div class="kpi-label">Hybrid (Both)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#c0392b;">{{ data.engine_stats.false_positive_count }}</div>
+    <div class="kpi-label">False Positives</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" style="color:#27ae60;">{{ (data.engine_stats.false_positive_rate * 100) | round(2) }}%</div>
+    <div class="kpi-label">FPR</div>
+  </div>
+</div>
+
+<!-- ── Daily alert timeline ───────────────────────────────────────── -->
+<h2>Daily Alert Timeline</h2>
+{% if data.daily_timeline %}
+<table class="timeline-table">
+  <thead>
+    <tr>
+      <th>Date</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Total</th><th>Distribution</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for day in data.daily_timeline %}
+    {% set day_total = day.critical + day.high + day.medium + day.low %}
+    {% set max_total = data.daily_timeline | map(attribute='critical') | sum +
+                       data.daily_timeline | map(attribute='high')     | sum +
+                       data.daily_timeline | map(attribute='medium')   | sum +
+                       data.daily_timeline | map(attribute='low')      | sum %}
+    {% set max_day = namespace(val=1) %}
+    {% for d in data.daily_timeline %}
+      {% set dt = d.critical + d.high + d.medium + d.low %}
+      {% if dt > max_day.val %}{% set max_day.val = dt %}{% endif %}
+    {% endfor %}
+    <tr>
+      <td style="font-family:monospace;font-size:12px;">{{ day.date }}</td>
+      <td style="color:#c0392b;">{{ day.critical }}</td>
+      <td style="color:#e67e22;">{{ day.high }}</td>
+      <td style="color:#d4ac0d;">{{ day.medium }}</td>
+      <td style="color:#2980b9;">{{ day.low }}</td>
+      <td style="font-weight:700;">{{ day_total }}</td>
+      <td class="bar-cell">
+        <div class="stacked-bar" style="width:{{ [day_total / max_day.val * 180, 180] | min }}px;">
+          {% if day.critical %}<div class="seg" style="width:{{ day.critical / day_total * 100 }}%;background:#c0392b;"></div>{% endif %}
+          {% if day.high     %}<div class="seg" style="width:{{ day.high     / day_total * 100 }}%;background:#e67e22;"></div>{% endif %}
+          {% if day.medium   %}<div class="seg" style="width:{{ day.medium   / day_total * 100 }}%;background:#d4ac0d;"></div>{% endif %}
+          {% if day.low      %}<div class="seg" style="width:{{ day.low      / day_total * 100 }}%;background:#2980b9;"></div>{% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#7f8c8d;font-style:italic;">No daily data for this period.</p>
+{% endif %}
+
+{% if data.peak_alert_hour is not none %}
+<p style="margin-top:10px;font-size:12px;color:#7f8c8d;">
+  ⏰ Peak alert hour: <strong>{{ "%02d:00–%02d:59" | format(data.peak_alert_hour, data.peak_alert_hour) }}</strong> UTC
+</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,182 @@
+# ============================================================
+# AI-NIDS — Docker Compose (Local Development Stack)
+# March 25, 2026 | Sprint 1
+#
+# Services:
+#   postgres  — Primary data store (PostgreSQL 15)
+#   redis     — Pipeline queues + alert cache (Redis 7)
+#   api       — FastAPI backend (capture + signature + API)
+#
+# Usage:
+#   docker compose up --build          # First run (builds api image)
+#   docker compose up                  # Subsequent runs
+#   docker compose up -d               # Detached mode
+#   docker compose logs -f api         # Follow api logs
+#   docker compose down -v             # Stop and remove volumes
+# ============================================================
+
+# ── Named volumes ─────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ── Named network ─────────────────────────────────────────────
+networks:
+  nids_network:
+    driver: bridge
+
+# ── Services ──────────────────────────────────────────────────
+services:
+
+  # ────────────────────────────────────────────────────────────
+  # PostgreSQL 15 — Primary persistent store
+  # FR7.8: Alerts stored in PostgreSQL
+  # NFR4: 99.9% uptime — restart always
+  # ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: nids_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nids_db}
+      POSTGRES_USER: ${POSTGRES_USER:-nids_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nids_password}
+      # Performance tuning for dev environment
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Init scripts run on first startup only
+      # Place your init.sql here once the schema is ready (Week 4)
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - nids_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nids_user} -d ${POSTGRES_DB:-nids_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ────────────────────────────────────────────────────────────
+  # Redis 7 — Pipeline event queues + real-time alert cache
+  # NFR1.1: Pipeline event streaming
+  # NFR1.6: Live dashboard stats cache (TTL=10s)
+  # Redis DB separation:
+  #   DB 0 → pipeline streams
+  #   DB 1 → alert/stats cache
+  #   DB 2 → session tokens
+  # ────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nids_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfilename "nids-aof.aof"
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --loglevel notice
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - nids_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ────────────────────────────────────────────────────────────
+  # API — FastAPI backend
+  # Includes: Packet Capture Engine, Signature Detection Engine,
+  #           Feature Extractor, ML Inference (placeholder),
+  #           Ensemble Correlator, Alert Generator, REST API
+  #
+  # NOTE: Live packet capture (FR1.1) requires host network access.
+  #       For PCAP file analysis (FR1.3), bridge networking is sufficient.
+  #       Live capture is enabled by uncommenting network_mode below.
+  # ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile
+      target: app
+    image: ai-nids-backend:dev
+    container_name: nids_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # ── Application ──────────────────────────────────────────
+      APP_ENV: ${APP_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      # ── Database ─────────────────────────────────────────────
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nids_user}:${POSTGRES_PASSWORD:-nids_password}@postgres:5432/${POSTGRES_DB:-nids_db}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-nids_user}:${POSTGRES_PASSWORD:-nids_password}@postgres:5432/${POSTGRES_DB:-nids_db}
+      # ── Redis ────────────────────────────────────────────────
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CACHE_URL: redis://redis:6379/1
+      REDIS_SESSION_URL: redis://redis:6379/2
+      # ── ML Models ────────────────────────────────────────────
+      MODEL_DIR: /app/models
+      RULES_DIR: /app/rules
+      # ── Packet Capture ───────────────────────────────────────
+      CAPTURE_INTERFACE: ${CAPTURE_INTERFACE:-eth0}
+      CAPTURE_MODE: ${CAPTURE_MODE:-pcap}   # 'live' or 'pcap'
+      PCAP_UPLOAD_DIR: /app/uploads
+      # ── Logging ──────────────────────────────────────────────
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: json
+    volumes:
+      # Hot-reload: mount source for development
+      - ..:/app
+      # PCAP upload directory (FR1.3)
+      - ..:/uploads
+      # ML model files (read from training output)
+      - ../models:/app/models
+      - ../rules:/app/rules
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - nids_network
+    # ── Live capture mode (uncomment when testing on real interface) ──
+    # network_mode: host    # Required for promiscuous mode (FR1.1)
+    # cap_add:
+    #   - NET_ADMIN
+    #   - NET_RAW
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+# ────────────────────────────────────────────────────────────
+  # Frontend — React/Vite Dashboard
+  # ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend/ai-nids-frontend
+      dockerfile: Dockerfile
+    container_name: nids_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:8000
+      VITE_WS_URL: ws://localhost:8000
+    ports:
+      - "3000:3000"
+    networks:
+      - nids_network

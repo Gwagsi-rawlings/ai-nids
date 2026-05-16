@@ -1,0 +1,56 @@
+# AI-NIDS — Port Scan / Reconnaissance Detection Rules
+# FR4.9 — The system shall detect port scanning patterns
+# Severity: HIGH / MEDIUM
+# March 23, 2026
+
+# ── TCP SYN Scan (Stealth Scan) ───────────────────────────────────────────────
+
+# Classic Nmap SYN scan — many SYN packets to different ports from same source
+alert tcp any any -> any any (msg:"Port Scan TCP SYN Sweep"; flags:S; threshold: type both, track by_src, count 20, seconds 60; sid:3001; rev:1;)
+
+# Aggressive SYN scan — higher rate
+alert tcp any any -> any any (msg:"Port Scan TCP SYN Aggressive"; flags:S; threshold: type both, track by_src, count 50, seconds 10; sid:3002; rev:1;)
+
+# ── TCP Connect Scan ─────────────────────────────────────────────────────────
+
+# Full TCP connect scan — SYN + ACK exchange before RST
+alert tcp any any -> any any (msg:"Port Scan TCP Connect Scan"; flags:SA; threshold: type both, track by_src, count 20, seconds 60; sid:3003; rev:1;)
+
+# ── NULL / FIN / XMAS Scans ──────────────────────────────────────────────────
+
+# NULL scan — no TCP flags set (evasion technique)
+alert tcp any any -> any any (msg:"Port Scan TCP NULL Scan"; flags:0; sid:3004; rev:1;)
+
+# FIN scan — only FIN flag
+alert tcp any any -> any any (msg:"Port Scan TCP FIN Scan"; flags:F; sid:3005; rev:1;)
+
+# XMAS scan — FIN + PSH + URG flags set
+alert tcp any any -> any any (msg:"Port Scan TCP XMAS Scan"; flags:FPU; sid:3006; rev:1;)
+
+# ── UDP Scan ──────────────────────────────────────────────────────────────────
+
+# UDP port scan — high-rate UDP probes to varying ports
+alert udp any any -> any any (msg:"Port Scan UDP Probe Sweep"; threshold: type both, track by_src, count 30, seconds 60; sid:3007; rev:1;)
+
+# ── ICMP Sweep (Ping Sweep) ───────────────────────────────────────────────────
+
+# ICMP echo request sweep — scanning live hosts across subnet
+alert icmp any any -> any any (msg:"Port Scan ICMP Ping Sweep"; itype:8; threshold: type both, track by_src, count 20, seconds 30; sid:3008; rev:1;)
+
+# ── Well-Known Service Probes ─────────────────────────────────────────────────
+
+# SSH probe — potential pre-attack reconnaissance
+alert tcp any any -> any 22 (msg:"Port Scan SSH Service Probe"; flags:S; threshold: type both, track by_src, count 5, seconds 60; sid:3009; rev:1;)
+
+# RDP probe
+alert tcp any any -> any 3389 (msg:"Port Scan RDP Service Probe"; flags:S; threshold: type both, track by_src, count 5, seconds 60; sid:3010; rev:1;)
+
+# SMB probe — often precedes lateral movement
+alert tcp any any -> any 445 (msg:"Port Scan SMB Service Probe"; flags:S; threshold: type both, track by_src, count 5, seconds 60; sid:3011; rev:1;)
+
+# Database port probe — MySQL / MSSQL / PostgreSQL
+alert tcp any any -> any 3306 (msg:"Port Scan MySQL Probe"; flags:S; threshold: type both, track by_src, count 3, seconds 60; sid:3012; rev:1;)
+
+alert tcp any any -> any 1433 (msg:"Port Scan MSSQL Probe"; flags:S; threshold: type both, track by_src, count 3, seconds 60; sid:3013; rev:1;)
+
+alert tcp any any -> any 5432 (msg:"Port Scan PostgreSQL Probe"; flags:S; threshold: type both, track by_src, count 3, seconds 60; sid:3014; rev:1;)

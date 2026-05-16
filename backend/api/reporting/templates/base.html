@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{{ title }} — AI-NIDS</title>
+<style>
+  /* ── Reset & base ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    color: #2c3e50;
+    background: #f5f6fa;
+    line-height: 1.55;
+  }
+
+  /* ── Page wrapper ──────────────────────────────────────────── */
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 40px 48px;
+  }
+
+  /* ── Cover banner ──────────────────────────────────────────── */
+  .cover-banner {
+    background: #1F4E79;
+    color: #ffffff;
+    padding: 28px 32px;
+    border-radius: 4px;
+    margin-bottom: 32px;
+  }
+  .cover-banner h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+  }
+  .cover-banner .meta {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .cover-banner .meta span { margin-right: 20px; }
+
+  /* ── Section headings ──────────────────────────────────────── */
+  h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1F4E79;
+    border-bottom: 2px solid #1F4E79;
+    padding-bottom: 5px;
+    margin: 28px 0 14px;
+  }
+  h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 20px 0 8px;
+  }
+
+  /* ── KPI cards row ─────────────────────────────────────────── */
+  .kpi-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .kpi-card {
+    flex: 1;
+    min-width: 120px;
+    border: 1px solid #dde3ea;
+    border-radius: 4px;
+    padding: 14px 16px;
+    text-align: center;
+    background: #f8fafc;
+  }
+  .kpi-card .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .kpi-card .kpi-label {
+    font-size: 11px;
+    color: #7f8c8d;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .kpi-critical { color: #c0392b; }
+  .kpi-high     { color: #e67e22; }
+  .kpi-medium   { color: #d4ac0d; }
+  .kpi-low      { color: #2980b9; }
+  .kpi-total    { color: #1F4E79; }
+
+  /* ── Tables ────────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin-bottom: 8px;
+  }
+  thead th {
+    background: #1F4E79;
+    color: #ffffff;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11.5px;
+    letter-spacing: 0.3px;
+  }
+  tbody tr:nth-child(even) { background: #f0f4f8; }
+  tbody tr:nth-child(odd)  { background: #ffffff;  }
+  tbody td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e8edf2;
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Severity badge ────────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-CRITICAL { background: #c0392b; }
+  .badge-HIGH     { background: #e67e22; }
+  .badge-MEDIUM   { background: #d4ac0d; }
+  .badge-LOW      { background: #2980b9; }
+
+  /* ── Progress bar ──────────────────────────────────────────── */
+  .bar-wrap {
+    background: #e8edf2;
+    border-radius: 3px;
+    height: 8px;
+    min-width: 100px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    width: 140px;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: #1F4E79;
+  }
+
+  /* ── Key finding callout ───────────────────────────────────── */
+  .callout {
+    background: #eaf2fb;
+    border-left: 4px solid #1F4E79;
+    padding: 12px 16px;
+    border-radius: 0 4px 4px 0;
+    margin: 20px 0;
+    font-size: 12.5px;
+  }
+  .callout strong { color: #1F4E79; }
+
+  /* ── Timeline mini-chart ───────────────────────────────────── */
+  .timeline-table td.bar-cell { min-width: 200px; }
+  .stacked-bar {
+    height: 14px;
+    display: flex;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stacked-bar .seg { height: 100%; }
+
+  /* ── Footer ─────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 40px;
+    padding-top: 12px;
+    border-top: 1px solid #dde3ea;
+    font-size: 11px;
+    color: #7f8c8d;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Print optimisation ────────────────────────────────────── */
+  @media print {
+    body { background: #fff; }
+    .page { padding: 20px; }
+    h2 { page-break-after: avoid; }
+    table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="cover-banner">
+    <h1>{{ title }}</h1>
+    <div class="meta">
+      <span>🏛 AI-NIDS — ICT University, Cameroon</span>
+      <span>📅 Period: {{ data.period_start | fmt_date }} → {{ data.period_end | fmt_date }}</span>
+      <span>🕒 Generated: {{ data.generated_at | fmt_dt }}</span>
+      <span>👤 {{ data.generated_by }}</span>
+    </div>
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <div class="footer">
+    <span>AI-NIDS Automated Report · Confidential</span>
+    <span>Generated {{ now | fmt_dt }}</span>
+  </div>
+
+</div>
+</body>
+</html>

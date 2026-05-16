@@ -1,0 +1,39 @@
+{
+  "model": "RandomForestClassifier_tuned",
+  "strategy": "custom_class_weights + threshold_calibration",
+  "training_dataset": "CICIDS2017",
+  "test_samples": 566149,
+  "baseline_macro_f1": 0.6639,
+  "accuracy": 0.986655,
+  "macro_f1": 0.891135,
+  "macro_precision": 0.980744,
+  "macro_recall": 0.842575,
+  "weighted_f1": 0.986669,
+  "fpr_overall": 0.01141,
+  "fpr_per_class": {
+    "BENIGN": 0.021116,
+    "Botnet": 4e-06,
+    "BruteForce": 0.000133,
+    "DDoS": 3.5e-05,
+    "DoS": 0.009509,
+    "Infiltration": 0.0,
+    "PortScan": 0.000372,
+    "WebAttack": 4e-06
+  },
+  "thresholds": {
+    "BENIGN": 0.11,
+    "Botnet": 0.83,
+    "BruteForce": 0.85,
+    "DDoS": 0.71,
+    "DoS": 0.87,
+    "Infiltration": 0.37,
+    "PortScan": 0.31,
+    "WebAttack": 0.63
+  },
+  "inf_ms_per_sample": 0.032711,
+  "nfr20_1_pass": true,
+  "nfr20_2_pass": true,
+  "nfr20_3_pass": true,
+  "nfr20_4_pass": false,
+  "trained_at": "2026-04-13T16:17:53Z"
+}

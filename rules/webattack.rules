@@ -1,0 +1,126 @@
+# AI-NIDS — Web Attack Detection Rules: SQL Injection & XSS
+# FR4.10 — The system shall detect SQL injection attempts in HTTP traffic
+# FR4.11 — The system shall detect XSS (Cross-Site Scripting) patterns
+# Severity: HIGH
+# March 23, 2026
+
+# ════════════════════════════════════════════════════════════════════════════
+# SQL INJECTION
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── UNION-based SQLi ─────────────────────────────────────────────────────────
+
+# Classic UNION SELECT extraction
+alert tcp any any -> any 80 (msg:"SQLi UNION SELECT Injection"; content:"UNION"; content:"SELECT"; nocase; sid:5001; rev:1;)
+
+alert tcp any any -> any 443 (msg:"SQLi UNION SELECT Injection HTTPS"; content:"UNION"; content:"SELECT"; nocase; sid:5002; rev:1;)
+
+# UNION ALL SELECT variant
+alert tcp any any -> any 80 (msg:"SQLi UNION ALL SELECT"; content:"UNION ALL"; content:"SELECT"; nocase; sid:5003; rev:1;)
+
+# ── Boolean-based SQLi ───────────────────────────────────────────────────────
+
+# OR 1=1 (always-true condition)
+alert tcp any any -> any 80 (msg:"SQLi Boolean OR 1=1"; content:"OR 1=1"; nocase; sid:5004; rev:1;)
+
+# AND 1=1 variant
+alert tcp any any -> any 80 (msg:"SQLi Boolean AND 1=1"; content:"AND 1=1"; nocase; sid:5005; rev:1;)
+
+# OR 'a'='a' string comparison
+alert tcp any any -> any 80 (msg:"SQLi Boolean String Comparison"; content:"OR 'a'='a'"; nocase; sid:5006; rev:1;)
+
+# ── Comment-based SQLi ───────────────────────────────────────────────────────
+
+# SQL comment sequences used to truncate queries
+alert tcp any any -> any 80 (msg:"SQLi Inline Comment Terminator"; content:"'--"; sid:5007; rev:1;)
+
+alert tcp any any -> any 80 (msg:"SQLi Hash Comment Terminator"; content:"'#"; sid:5008; rev:1;)
+
+# ── Time-based Blind SQLi ────────────────────────────────────────────────────
+
+# SLEEP() function — MySQL time-based blind
+alert tcp any any -> any 80 (msg:"SQLi MySQL SLEEP Function"; content:"SLEEP("; nocase; sid:5009; rev:1;)
+
+# WAITFOR DELAY — MSSQL time-based blind
+alert tcp any any -> any 80 (msg:"SQLi MSSQL WAITFOR DELAY"; content:"WAITFOR"; content:"DELAY"; nocase; sid:5010; rev:1;)
+
+# BENCHMARK — alternative MySQL delay
+alert tcp any any -> any 80 (msg:"SQLi MySQL BENCHMARK Function"; content:"BENCHMARK("; nocase; sid:5011; rev:1;)
+
+# ── Error-based SQLi ─────────────────────────────────────────────────────────
+
+# EXTRACTVALUE() — MySQL error-based extraction
+alert tcp any any -> any 80 (msg:"SQLi MySQL EXTRACTVALUE Injection"; content:"EXTRACTVALUE"; nocase; sid:5012; rev:1;)
+
+# CONVERT / CAST type error trigger
+alert tcp any any -> any 80 (msg:"SQLi Type Conversion Error Injection"; content:"CAST("; content:"CONVERT("; nocase; sid:5013; rev:1;)
+
+# ── Stacked Queries ──────────────────────────────────────────────────────────
+
+# Semicolon stacking — execute multiple statements
+alert tcp any any -> any 80 (msg:"SQLi Stacked Query Attempt"; content:";SELECT"; nocase; sid:5014; rev:1;)
+
+alert tcp any any -> any 80 (msg:"SQLi Stacked DROP Attempt"; content:";DROP"; nocase; sid:5015; rev:1;)
+
+# ── Common SQLi Payloads ─────────────────────────────────────────────────────
+
+# Information schema enumeration
+alert tcp any any -> any 80 (msg:"SQLi Information Schema Probe"; content:"information_schema"; nocase; sid:5016; rev:1;)
+
+# System table access
+alert tcp any any -> any 80 (msg:"SQLi sys.tables Probe"; content:"sys.tables"; nocase; sid:5017; rev:1;)
+
+# ════════════════════════════════════════════════════════════════════════════
+# CROSS-SITE SCRIPTING (XSS)
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Reflected XSS ────────────────────────────────────────────────────────────
+
+# Classic <script> tag injection
+alert tcp any any -> any 80 (msg:"XSS Script Tag Injection"; content:"<script"; nocase; sid:5018; rev:1;)
+
+# Script tag with src attribute — external script load
+alert tcp any any -> any 80 (msg:"XSS Script Src External Load"; content:"<script"; content:"src="; nocase; sid:5019; rev:1;)
+
+# ── Event Handler XSS ────────────────────────────────────────────────────────
+
+# JavaScript in onerror handler — image tag XSS
+alert tcp any any -> any 80 (msg:"XSS onerror Event Handler"; content:"onerror="; nocase; sid:5020; rev:1;)
+
+# onload handler — body/img/iframe variant
+alert tcp any any -> any 80 (msg:"XSS onload Event Handler"; content:"onload="; nocase; sid:5021; rev:1;)
+
+# onclick handler injection
+alert tcp any any -> any 80 (msg:"XSS onclick Event Handler"; content:"onclick="; nocase; sid:5022; rev:1;)
+
+# onmouseover handler
+alert tcp any any -> any 80 (msg:"XSS onmouseover Event Handler"; content:"onmouseover="; nocase; sid:5023; rev:1;)
+
+# ── JavaScript Protocol XSS ──────────────────────────────────────────────────
+
+# javascript: URI in href / src attributes
+alert tcp any any -> any 80 (msg:"XSS JavaScript Protocol URI"; content:"javascript:"; nocase; sid:5024; rev:1;)
+
+# ── DOM-based / Encoded XSS ──────────────────────────────────────────────────
+
+# HTML entity encoded script tags (URL encoding evasion)
+alert tcp any any -> any 80 (msg:"XSS URL Encoded Script Tag"; content:"%3Cscript"; nocase; sid:5025; rev:1;)
+
+# Double-encoded left bracket
+alert tcp any any -> any 80 (msg:"XSS Double Encoded Bracket"; content:"%253C"; sid:5026; rev:1;)
+
+# eval() function in injected context
+alert tcp any any -> any 80 (msg:"XSS eval() Function Injection"; content:"eval("; nocase; sid:5027; rev:1;)
+
+# document.cookie access — credential theft indicator
+alert tcp any any -> any 80 (msg:"XSS document.cookie Access"; content:"document.cookie"; nocase; sid:5028; rev:1;)
+
+# ── SVG-based XSS ────────────────────────────────────────────────────────────
+
+# SVG with onload handler — bypasses script-tag filters
+alert tcp any any -> any 80 (msg:"XSS SVG onload Injection"; content:"<svg"; content:"onload="; nocase; sid:5029; rev:1;)
+
+# ── HTTPS Variants ────────────────────────────────────────────────────────────
+
+# XSS over HTTPS (TLS metadata — payload not inspectable, flag suspicious patterns)
+alert tcp any any -> any 443 (msg:"XSS Script Tag HTTPS"; content:"<script"; nocase; sid:5030; rev:1;)

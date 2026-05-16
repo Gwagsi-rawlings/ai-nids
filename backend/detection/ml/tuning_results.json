@@ -1,0 +1,220 @@
+{
+  "tuning_date": "2026-03-30",
+  "rf": {
+    "best_params": {
+      "max_depth": null,
+      "min_samples_leaf": 10,
+      "class_weight": "custom",
+      "n_estimators": 200
+    },
+    "val_macro_f1": 0.792,
+    "val_fpr": 0.05,
+    "calibrated_thresholds": {
+      "BENIGN": 0.15,
+      "Botnet": 0.9,
+      "BruteForce": 0.775,
+      "DDoS": 0.475,
+      "DoS": 0.75,
+      "Infiltration": 0.35,
+      "PortScan": 0.275,
+      "WebAttack": 0.475
+    },
+    "grid_results": [
+      {
+        "max_depth": null,
+        "min_samples_leaf": 2,
+        "class_weight": "balanced",
+        "macro_f1": 0.6219,
+        "fpr": 0.0627,
+        "feasible": false
+      },
+      {
+        "max_depth": null,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced",
+        "macro_f1": 0.6301,
+        "fpr": 0.0639,
+        "feasible": false
+      },
+      {
+        "max_depth": null,
+        "min_samples_leaf": 10,
+        "class_weight": "balanced",
+        "macro_f1": 0.6358,
+        "fpr": 0.0677,
+        "feasible": false
+      },
+      {
+        "max_depth": 50,
+        "min_samples_leaf": 2,
+        "class_weight": "balanced",
+        "macro_f1": 0.6219,
+        "fpr": 0.0627,
+        "feasible": false
+      },
+      {
+        "max_depth": 50,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced",
+        "macro_f1": 0.6301,
+        "fpr": 0.0639,
+        "feasible": false
+      },
+      {
+        "max_depth": 30,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced",
+        "macro_f1": 0.63,
+        "fpr": 0.0639,
+        "feasible": false
+      },
+      {
+        "max_depth": null,
+        "min_samples_leaf": 2,
+        "class_weight": "custom",
+        "macro_f1": 0.6884,
+        "fpr": 0.0408,
+        "feasible": true
+      },
+      {
+        "max_depth": null,
+        "min_samples_leaf": 5,
+        "class_weight": "custom",
+        "macro_f1": 0.6896,
+        "fpr": 0.0418,
+        "feasible": true
+      },
+      {
+        "max_depth": null,
+        "min_samples_leaf": 10,
+        "class_weight": "custom",
+        "macro_f1": 0.706,
+        "fpr": 0.0443,
+        "feasible": true
+      },
+      {
+        "max_depth": 50,
+        "min_samples_leaf": 2,
+        "class_weight": "custom",
+        "macro_f1": 0.6884,
+        "fpr": 0.0408,
+        "feasible": true
+      },
+      {
+        "max_depth": 50,
+        "min_samples_leaf": 5,
+        "class_weight": "custom",
+        "macro_f1": 0.6896,
+        "fpr": 0.0418,
+        "feasible": true
+      },
+      {
+        "max_depth": 30,
+        "min_samples_leaf": 5,
+        "class_weight": "custom",
+        "macro_f1": 0.6891,
+        "fpr": 0.0423,
+        "feasible": true
+      }
+    ],
+    "model_file": "/home/rawlings/ai-nids/backend/detection/models/random_forest_tuned.pkl"
+  },
+  "if": {
+    "best_contamination": 0.015,
+    "val_tpr": 0.4374,
+    "val_fpr": 0.0605,
+    "calibrated_threshold": 0.475,
+    "grid_results": [
+      {
+        "contamination": 0.005,
+        "threshold": 0.45,
+        "tpr": 0.4482,
+        "fpr": 0.0935,
+        "feasible": false
+      },
+      {
+        "contamination": 0.008,
+        "threshold": 0.45,
+        "tpr": 0.4506,
+        "fpr": 0.1105,
+        "feasible": false
+      },
+      {
+        "contamination": 0.01,
+        "threshold": 0.45,
+        "tpr": 0.451,
+        "fpr": 0.1272,
+        "feasible": false
+      },
+      {
+        "contamination": 0.015,
+        "threshold": 0.475,
+        "tpr": 0.4374,
+        "fpr": 0.0605,
+        "feasible": false
+      },
+      {
+        "contamination": 0.02,
+        "threshold": 0.475,
+        "tpr": 0.443,
+        "fpr": 0.0692,
+        "feasible": false
+      }
+    ],
+    "model_file": "/home/rawlings/ai-nids/backend/detection/models/isolation_forest_tuned.pkl"
+  },
+  "test_set_results": {
+    "rf_macro_f1": 0.7776,
+    "rf_weighted_f1": 0.9688,
+    "rf_fpr": 0.0506,
+    "if_tpr": 0.173,
+    "if_fpr": 0.0149,
+    "per_class_rf": {
+      "Botnet": {
+        "baseline": 0.8703,
+        "tuned": 0.9644,
+        "delta": 0.0941
+      },
+      "BruteForce": {
+        "baseline": 0.9892,
+        "tuned": 0.9577,
+        "delta": -0.0315
+      },
+      "DDoS": {
+        "baseline": 0.9998,
+        "tuned": 0.9988,
+        "delta": -0.001
+      },
+      "DoS": {
+        "baseline": 0.9953,
+        "tuned": 0.9943,
+        "delta": -0.001
+      },
+      "Infiltration": {
+        "baseline": 0.7143,
+        "tuned": 0.8571,
+        "delta": 0.1428
+      },
+      "PortScan": {
+        "baseline": 1.0,
+        "tuned": 0.9995,
+        "delta": -0.0005
+      },
+      "WebAttack": {
+        "baseline": 0.9083,
+        "tuned": 0.8945,
+        "delta": -0.0138
+      }
+    }
+  },
+  "baseline_vs_tuned": {
+    "rf_baseline_macro_f1": 0.6639,
+    "rf_tuned_macro_f1": 0.7776,
+    "rf_baseline_fpr": 0.0723,
+    "rf_tuned_fpr": 0.0506,
+    "if_baseline_tpr": 0.3471,
+    "if_tuned_tpr": 0.173,
+    "if_baseline_fpr": 0.0501,
+    "if_tuned_fpr": 0.0149
+  }
+}

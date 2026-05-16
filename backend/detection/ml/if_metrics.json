@@ -1,0 +1,58 @@
+{
+  "model": "IsolationForest",
+  "training_date": "2026-03-29",
+  "dataset": "CICIDS2017",
+  "training_on": "BENIGN flows only (unsupervised -- FR5.2, FR5.7)",
+  "training_samples_benign": 1818477,
+  "test_samples_total": 566149,
+  "test_samples_benign": 454620,
+  "test_samples_attack": 111529,
+  "hyperparameters": {
+    "n_estimators": 100,
+    "contamination": 0.01,
+    "max_samples": "auto",
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "metrics": {
+    "accuracy": 0.810795,
+    "precision": 0.663165,
+    "recall_tpr": 0.080374,
+    "f1_score_binary": 0.143371,
+    "false_positive_rate": 0.010015,
+    "inference_latency_ms": 0.334728
+  },
+  "confusion_matrix": {
+    "TN": 450067,
+    "FP": 4553,
+    "FN": 102565,
+    "TP": 8964
+  },
+  "per_class_tpr": {
+    "Botnet": 0.007634,
+    "BruteForce": 0.0,
+    "DDoS": 0.0,
+    "DoS": 0.177224,
+    "Infiltration": 0.0,
+    "PortScan": 0.000157,
+    "WebAttack": 0.0
+  },
+  "confidence_mapping": {
+    "method": "sigmoid(decision_function_score)",
+    "convention": "higher confidence = more anomalous = more likely attack",
+    "range": "[0.0, 1.0]"
+  },
+  "ensemble_role": {
+    "weight": 0.1,
+    "alert_threshold": 0.5,
+    "note": "IF weight 0.10 implements soft-gating: IF-only false positive contributes max 0.10 to ensemble score, below the 0.50 alert threshold. Multi-engine corroboration required to trigger alert."
+  },
+  "nfr_targets": {
+    "NFR20.1_accuracy_pass": false,
+    "NFR20.2_fpr_pass": true,
+    "latency_pass": true
+  },
+  "training_time_seconds": 24.9,
+  "model_file": "/home/rawlings/ai-nids/backend/detection/models/isolation_forest.pkl",
+  "notes": "Isolation Forest trained on BENIGN-only CICIDS2017 training split. SMOTE not applicable -- IF is unsupervised and requires no attack labels. class_weight parameter not applicable to IsolationForest. Confidence mapped to [0.0, 1.0] via sigmoid(decision_function score). Higher confidence = more anomalous flow = higher attack probability."
+}

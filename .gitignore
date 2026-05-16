@@ -1,0 +1,51 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# ML artifacts (large files — do NOT commit)
+backend/detection/ml/processed/*.npy
+backend/detection/models/*.pkl
+backend/detection/models/*.pt
+backend/detection/models/*.h5
+
+# Datasets
+**/datasets/
+*.csv
+
+# Logs
+*.log
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large ML artifacts — exclude from git
+*.npy
+*.pkl
+*.pt
+*.h5
+*.csv
+*.pcap
+*.pcapng
+venv/
+ml/datasets/
+backend/detection/ml/processed/
+backend/detection/models/
+ml/random_forest.pkl
+*.npy
+*.pkl
+*.zip
+*.pcap
+*.csv
