@@ -67,3 +67,7 @@ models/
 *.pt
 *.h5
 *.joblib
+*.pkl
+*.pt
+*.h5
+*.joblib
