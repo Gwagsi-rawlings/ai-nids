@@ -84,7 +84,7 @@ async def process_detection_event(
     Returns the persisted AlertRead if a new alert was created,
     or None if the event was suppressed as a duplicate (FR8.5).
     """
-    cache = await get_cache()
+    cache = get_cache()
     redis = await get_redis()
 
     # ── 1. Deduplication check (FR8.5) ────────────────────────────────────
@@ -110,13 +110,13 @@ async def process_detection_event(
     alert = Alert(
         attack_type=event.attack_type,
         severity=severity.value,
-        confidence_score=event.ensemble_score,
+        confidence=event.ensemble_score,
         src_ip=event.src_ip,
         dst_ip=event.dst_ip,
         src_port=event.src_port,
         dst_port=event.dst_port,
         protocol=event.protocol,
-        detection_method=event.detection_method.value,
+        detected_by=event.detection_method.value if hasattr(event.detection_method, 'value') else (event.detection_method or 'ml'),
         description=event.description or _alert_description(event),
         rule_id=event.matched_rule_id,
         flow_id=event.flow_id,
@@ -148,13 +148,13 @@ async def process_detection_event(
         timestamp=alert.timestamp,
         severity=severity,
         attack_type=event.attack_type,
-        confidence_score=event.ensemble_score,
+        confidence=event.ensemble_score,
         src_ip=event.src_ip,
         dst_ip=event.dst_ip,
         src_port=event.src_port,
         dst_port=event.dst_port,
         protocol=event.protocol,
-        detection_method=event.detection_method,
+        detected_by=event.detection_method.value if hasattr(event.detection_method, 'value') else (event.detection_method or 'ml'),
         description=alert.description,
         rule_id=event.matched_rule_id,
         flow_id=event.flow_id,
@@ -218,7 +218,7 @@ async def acknowledge_alert(
     await db.flush()
 
     # Invalidate cache so dashboard gets fresh data
-    cache = await get_cache()
+    cache = get_cache()
     await cache.delete(f"nids:cache:alert:{alert_id}")
 
     return AlertRead.model_validate(alert)
@@ -229,7 +229,7 @@ async def get_live_stats() -> dict:
     Return live traffic / alert counters from Redis cache (NFR1.6).
     Falls back to zeros if cache is cold.
     """
-    cache = await get_cache()
+    cache = get_cache()
     raw = await cache.hgetall("nids:cache:stats:live")
     return {
         "total_alerts": int(raw.get("total_alerts", 0)),

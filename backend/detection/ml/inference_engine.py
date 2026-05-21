@@ -30,6 +30,7 @@ April 1, 2026 | Sprint 1 | Developer: GWAGSI Rawlings Nshom
 """
 
 from __future__ import annotations
+# LSTMResult imported lazily to avoid circular imports
  
 import logging
 import math
@@ -88,6 +89,7 @@ class MLInferenceResult:
     flow_id: str
     rf: RFResult
     if_result: IFResult
+    lstm: Optional[object] = None  # LSTMResult from lstm_inference.py
     error: Optional[str] = None
  
  

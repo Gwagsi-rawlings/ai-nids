@@ -14,8 +14,19 @@ April 3, 2026 | Sprint 1, Week 4
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
+
+import enum
+
+class DetectionMethod(str, enum.Enum):
+    SIGNATURE   = "signature"
+    RANDOM_FOREST = "random_forest"
+    ISOLATION_FOREST = "isolation_forest"
+    LSTM        = "lstm"
+    ENSEMBLE    = "ensemble"
+    HYBRID      = "HYBRID"
+
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -36,8 +47,8 @@ DETECT_METHODS = {"signature", "ml", "both"}
 class AlertCreate(BaseModel):
     """Schema for ingesting a detection event from the pipeline (POST /alerts)."""
     attack_type: str = Field(..., max_length=64, description="Attack category label")
-    severity: str = Field(..., description="CRITICAL | HIGH | MEDIUM | LOW")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Ensemble confidence [0,1]")
+    severity: str = Field(default="LOW", description="CRITICAL | HIGH | MEDIUM | LOW")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Ensemble confidence [0,1]")
     detected_by: str = Field(default="ml", description="signature | ml | both")
     src_ip: str = Field(..., max_length=45)
     dst_ip: str = Field(..., max_length=45)
@@ -176,7 +187,7 @@ class MessageResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
 # --- ML Model schema ---
-from pydantic import BaseModel
+from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -188,29 +199,26 @@ class MLModelRead(BaseModel):
     is_active: bool
     accuracy: Optional[float] = None
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
 
 class AlertRead(BaseModel):
-    id: int
-    flow_id: str
-    severity: str
-    attack_class: str
-    confidence: float
+    id: Union[int, str] = 0
+    flow_id: str = ""
+    severity: str = "LOW"
+    attack_class: str = "BENIGN"
+    confidence: float = 0.0
     is_false_positive: bool = False
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
 
 import enum
 
 class SeverityLevel(str, enum.Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
 class DetectionEvent(BaseModel):
     flow_id: str
@@ -219,10 +227,19 @@ class DetectionEvent(BaseModel):
     src_port: int
     dst_port: int
     protocol: str
-    attack_class: str
-    severity: SeverityLevel
-    confidence: float
-    timestamp: datetime
+    attack_class: str = 'BENIGN'
+    attack_type: str = 'BENIGN'
+    detection_method: str = 'ensemble'
+    ensemble_score: float = 0.0
+    sig_confidence: float = 0.0
+    rf_confidence: float = 0.0
+    lstm_confidence: float = 0.0
+    if_confidence: float = 0.0
+    matched_rule_id: str = ''
+    description: str = ''
+    severity: SeverityLevel = SeverityLevel.LOW
+    confidence: float = 0.0
+    timestamp: datetime = None
 
 class AlertCreate(BaseModel):
     flow_id: str
