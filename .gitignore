@@ -49,3 +49,11 @@ ml/random_forest.pkl
 *.zip
 *.pcap
 *.csv
+*.Zone.Identifier
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+venv/
+.env
