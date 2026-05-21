@@ -63,3 +63,7 @@ venv/
 *.bin
 *.joblib
 models/
+*.pkl
+*.pt
+*.h5
+*.joblib
