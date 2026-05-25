@@ -207,10 +207,12 @@ app.add_middleware(
 from backend.api.routers.alerts import router as alerts_router  # noqa: E402
 from backend.api.routers.rules import router as rules_router    # noqa: E402
 from backend.api.routers.status import router as status_router  # noqa: E402
+from backend.api.routers.capture import router as capture_router  # noqa: E402
  
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(rules_router, prefix="/api/v1")
 app.include_router(status_router, prefix="/api/v1")
+app.include_router(capture_router, prefix="/api/v1")
  
  
 # ── Health (Docker HEALTHCHECK + monitoring — NFR16.3) ─────────────────────

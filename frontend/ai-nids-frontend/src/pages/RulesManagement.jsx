@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchRules, createRule, toggleRule as toggleRuleApi, deleteRule as deleteRuleApi, updateRule as updateRuleApi } from '../api/rules';
 
 // ── Palette & constants ───────────────────────────────────────────────────────
 const C = {
@@ -42,7 +44,7 @@ const SEED_RULES = [
 
 function nextSid(rules) {
   const max = rules.reduce((m, r) => {
-    const n = parseInt(r.id.replace("SID:", ""), 10);
+    const n = parseInt(r.rule_id.replace("SID:", ""), 10);
     return n > m ? n : m;
   }, 1012);
   return `SID:${max + 1}`;
@@ -101,8 +103,8 @@ function validateRule(raw) {
 function RuleModal({ rule, onSave, onClose }) {
   const isEdit = !!rule;
   const [raw, setRaw]       = useState(rule?.raw || 'alert tcp any any -> any 80 (msg:""; content:""; nocase; classtype:web-application-attack; sid:; rev:1;)');
-  const [name, setName]     = useState(rule?.name || "");
-  const [cat, setCat]       = useState(rule?.category || "WebAttack");
+  const [name, setName]     = useState(rule?.rule_name || "");
+  const [cat, setCat]       = useState(rule?.attack_category || "WebAttack");
   const [sev, setSev]       = useState(rule?.severity || "MEDIUM");
   const [errors, setErrors] = useState([]);
   const taRef = useRef(null);
@@ -281,10 +283,10 @@ function DeleteConfirm({ rule, onConfirm, onClose }) {
         </div>
         <div style={{ padding: "20px" }}>
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.text, lineHeight: 1.7, marginBottom: 8 }}>
-            Permanently delete rule <span style={{ color: C.textBright }}>{rule.id}</span>?
+            Permanently delete rule <span style={{ color: C.textBright }}>{rule.rule_id}</span>?
           </p>
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-            "{rule.name}"
+            "{rule.rule_name}"
           </p>
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.red, marginTop: 12 }}>
             This action cannot be undone. {rule.hits} recorded hits will be lost.
@@ -359,12 +361,12 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
 
         {/* SID */}
         <div style={{ padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.purple }}>
-          {rule.id}
+          {rule.rule_id}
         </div>
 
         {/* Name */}
         <div style={{ padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.textBright, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-          {rule.name}
+          {rule.rule_name}
         </div>
 
         {/* Category */}
@@ -374,7 +376,7 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
             background: C.muted, border: `1px solid ${C.border}`,
             fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.text, letterSpacing: 0.5,
           }}>
-            {rule.category}
+            {rule.attack_category}
           </span>
         </div>
 
@@ -392,17 +394,17 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
         <div style={{ padding: "10px 8px" }} onClick={e => { e.stopPropagation(); onToggle(); }}>
           <div style={{
             width: 36, height: 18, borderRadius: 10,
-            background: rule.enabled ? C.greenDim : C.muted,
-            border: `1px solid ${rule.enabled ? C.acid + "60" : C.border}`,
+            background: rule.is_enabled ? C.greenDim : C.muted,
+            border: `1px solid ${rule.is_enabled ? C.acid + "60" : C.border}`,
             position: "relative", cursor: "pointer", transition: "all 0.2s",
           }}>
             <div style={{
               position: "absolute", top: 2,
-              left: rule.enabled ? 18 : 2,
+              left: rule.is_enabled ? 18 : 2,
               width: 12, height: 12, borderRadius: "50%",
-              background: rule.enabled ? C.acid : C.textDim,
+              background: rule.is_enabled ? C.acid : C.textDim,
               transition: "left 0.2s, background 0.2s",
-              boxShadow: rule.enabled ? `0 0 6px ${C.acid}80` : "none",
+              boxShadow: rule.is_enabled ? `0 0 6px ${C.acid}80` : "none",
             }} />
           </div>
         </div>
@@ -456,7 +458,11 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function RulesManagement() {
-  const [rules, setRules]         = useState(SEED_RULES);
+  const queryClient = useQueryClient();
+  const { data: rulesData, isLoading, isError } = useQuery(['rules'], fetchRules, {
+    staleTime: 30_000,
+  });
+
   const [search, setSearch]       = useState("");
   const [filterCat, setFilterCat] = useState("ALL");
   const [filterSev, setFilterSev] = useState("ALL");
@@ -467,69 +473,83 @@ export default function RulesManagement() {
   const [delTarget, setDelTarget] = useState(null);
   const [toast, setToast]         = useState(null);
 
+  const rules = rulesData?.rules ?? [];
+
   function showToast(msg, type = "ok") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 2800);
   }
 
-  function toggleRule(id) {
-    const rule = rules.find(r => r.id === id);
+  async function toggleRule(id) {
+    const rule = rules.find(r => r.rule_id === id);
     if (!rule) return;
-    setRules(rs => rs.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
-    showToast(`${rule.id} ${rule.enabled ? "disabled" : "enabled"}`);
-  }
-
-  function saveRule(data) {
-    if (showCreate) {
-      const newId = nextSid(rules);
-      const newRule = {
-        id: newId,
-        name: data.name,
-        category: data.category,
-        severity: data.severity,
-        enabled: true,
-        protocol: data.raw.match(/^alert\s+(\w+)/)?.[1] || "tcp",
-        src: "any", srcPort: "any", dst: "any", dstPort: "any",
-        raw: data.raw,
-        hits: 0,
-        created: new Date().toISOString().slice(0, 10),
-      };
-      setRules(rs => [newRule, ...rs]);
-      showToast(`${newId} created`);
-      setShowCreate(false);
-    } else if (editTarget) {
-      const id = editTarget.id;
-      setRules(rs => rs.map(r => r.id === id
-        ? { ...r, name: data.name, category: data.category, severity: data.severity, raw: data.raw }
-        : r
-      ));
-      setEditTarget(null);
-      showToast(`${id} updated`);
+    try {
+      const updated = await toggleRuleApi(id, !rule.is_enabled);
+      queryClient.invalidateQueries(['rules']);
+      showToast(`${updated.rule_id} ${updated.is_enabled ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      showToast('Failed to update rule', 'warn');
     }
   }
 
-  function deleteRule() {
+  async function saveRule(data) {
+    try {
+      if (showCreate) {
+        const newRuleId = nextSid(rules);
+        await createRule({
+          rule_id: newRuleId,
+          rule_name: data.name,
+          rule_content: data.raw,
+          attack_category: data.category,
+          severity: data.severity,
+          is_enabled: true,
+        });
+        queryClient.invalidateQueries(['rules']);
+        showToast(`${newRuleId} created`);
+        setShowCreate(false);
+      } else if (editTarget) {
+        const id = editTarget.rule_id;
+        await updateRuleApi(id, {
+          rule_name: data.name,
+          rule_content: data.raw,
+          attack_category: data.category,
+          severity: data.severity,
+        });
+        queryClient.invalidateQueries(['rules']);
+        setEditTarget(null);
+        showToast(`${id} updated`);
+      }
+    } catch (err) {
+      showToast('Failed to save rule', 'warn');
+    }
+  }
+
+  async function deleteRule() {
     if (!delTarget) return;
-    const id   = delTarget.id;
-    const name = delTarget.name;
-    setDelTarget(null);
-    setExpanded(null);
-    setRules(rs => rs.filter(r => r.id !== id));
-    showToast(`${id} deleted`, "warn");
+    const id = delTarget.rule_id;
+    try {
+      await deleteRuleApi(id);
+      queryClient.invalidateQueries(['rules']);
+      setDelTarget(null);
+      setExpanded(null);
+      showToast(`${id} deleted`, 'warn');
+    } catch (err) {
+      showToast('Failed to delete rule', 'warn');
+    }
   }
 
   const filtered = rules.filter(r => {
-    if (filterCat !== "ALL" && r.category !== filterCat) return false;
+    if (filterCat !== "ALL" && r.attack_category !== filterCat) return false;
     if (filterSev !== "ALL" && r.severity !== filterSev) return false;
-    if (filterStat === "ENABLED"  && !r.enabled) return false;
-    if (filterStat === "DISABLED" && r.enabled)  return false;
-    if (search && !r.name.toLowerCase().includes(search.toLowerCase()) && !r.id.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterStat === "ENABLED"  && !r.is_enabled) return false;
+    if (filterStat === "DISABLED" && r.is_enabled)  return false;
+    if (search && !r.rule_name.toLowerCase().includes(search.toLowerCase()) && !r.rule_id.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const enabledCount  = rules.filter(r => r.enabled).length;
+  const enabledCount  = rules.filter(r => r.is_enabled).length;
   const alertCount    = rules.filter(r => r.severity === "CRITICAL" || r.severity === "HIGH").length;
-  const totalHits     = rules.reduce((s, r) => s + r.hits, 0);
+  const totalHits     = rules.reduce((s, r) => s + (r.hits ?? 0), 0);
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text, display: "flex", flexDirection: "column", fontFamily: "'JetBrains Mono', monospace", position: "relative" }}>
@@ -690,11 +710,11 @@ export default function RulesManagement() {
         ) : (
           filtered.map(rule => (
             <RuleRow
-              key={rule.id}
+              key={rule.rule_id}
               rule={rule}
-              expanded={expanded === rule.id}
-              onExpand={() => setExpanded(expanded === rule.id ? null : rule.id)}
-              onToggle={() => toggleRule(rule.id)}
+              expanded={expanded === rule.rule_id}
+              onExpand={() => setExpanded(expanded === rule.rule_id ? null : rule.rule_id)}
+              onToggle={() => toggleRule(rule.rule_id)}
               onEdit={() => setEditTarget(rule)}
               onDelete={() => setDelTarget(rule)}
             />

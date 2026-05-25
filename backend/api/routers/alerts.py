@@ -20,6 +20,7 @@ April 3–8, 2026 | Sprint 1, Week 4
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -33,7 +34,7 @@ from infrastructure.db.models import Alert, User
 from infrastructure.db import redis_client
 from backend.api.schemas import (
     AlertCreate, AlertResponse, AlertListResponse,
-    AlertAcknowledge, MessageResponse,
+    AlertAcknowledge, AlertNoteRequest,
 )
 
 logger = logging.getLogger("ai-nids.alerts")
@@ -101,7 +102,43 @@ def _alert_to_dict(alert: Alert) -> dict:
         "if_confidence":    float(alert.if_confidence)   if alert.if_confidence   is not None else None,
         "flow_id":          str(alert.flow_id)  if alert.flow_id  else None,
         "group_id":         str(alert.group_id) if alert.group_id else None,
+        "notes":            _parse_notes(alert.description),
     }
+
+
+def _parse_notes(description: Optional[str]) -> list[dict]:
+    if not description:
+        return []
+
+    notes = []
+    for line in description.splitlines():
+        if not line.startswith("[Note]"):
+            continue
+        payload = line[len("[Note]"):].strip()
+        if not payload:
+            continue
+
+        match = re.match(r"^([0-9TZ:\.\-]+)\s+(.*)$", payload)
+        if match:
+            ts_raw, text = match.groups()
+            try:
+                ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+            except ValueError:
+                ts = None
+        else:
+            ts = None
+            text = payload
+
+        notes.append({"ts": ts.isoformat() if ts else None, "text": text})
+    return notes
+
+
+def _format_note_line(note_text: str) -> str:
+    note_text = note_text.strip()
+    if not note_text:
+        return ""
+    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return f"[Note] {ts} {note_text}"
 
 
 # ── POST /alerts ──────────────────────────────────────────────
@@ -307,7 +344,9 @@ async def acknowledge_alert(
     alert.status = "acknowledged"
     alert.acknowledged_at = datetime.now(timezone.utc)
     if body.note:
-        alert.description = alert.description + f"\n[Note] {body.note}"
+        note_line = _format_note_line(body.note)
+        if note_line:
+            alert.description = alert.description + ("\n" if alert.description else "") + note_line
 
     await db.flush()
 
@@ -318,6 +357,38 @@ async def acknowledge_alert(
         pass
 
     logger.info(f"Alert acknowledged: alert_id={alert_id}")
+    return AlertResponse.model_validate(_alert_to_dict(alert))
+
+
+@router.post(
+    "/{alert_id}/notes",
+    response_model=AlertResponse,
+    summary="Add an investigation note to an alert",
+)
+async def add_alert_note(
+    alert_id: str,
+    body: AlertNoteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Alert).where(Alert.alert_id == alert_id))
+    alert = result.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
+
+    note_line = _format_note_line(body.text)
+    if not note_line:
+        raise HTTPException(status_code=400, detail="Note text must not be empty")
+
+    alert.description = alert.description + ("\n" if alert.description else "") + note_line
+    await db.flush()
+
+    try:
+        cache = redis_client.get_cache()
+        await cache.delete(f"nids:cache:alert:{alert_id}")
+    except Exception:
+        pass
+
+    logger.info(f"Note added to alert: alert_id={alert_id}")
     return AlertResponse.model_validate(_alert_to_dict(alert))
 
 

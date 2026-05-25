@@ -27,20 +27,24 @@ const addNote = ({ id, note }) =>
 /* ── shape normaliser (API → component schema) ──────────── */
 function normaliseAlert(a) {
   return {
-    id:         a.alert_id ?? a.id,
-    ts:         a.detected_at ?? a.timestamp ?? new Date().toISOString(),
-    severity:   (a.severity ?? 'LOW').toLowerCase(),
-    type:       a.attack_type ?? a.type ?? 'Unknown',
-    src_ip:     a.src_ip ?? '—',
-    dst_ip:     a.dst_ip ?? '—',
-    dst_port:   a.dst_port ?? null,
-    protocol:   a.protocol ?? '—',
-    engine:     a.detected_by ?? a.engine ?? '—',
-    confidence: a.confidence ?? a.confidence_score ?? 0,
-    status:     (a.status ?? 'NEW').toLowerCase().replace('new', 'open'),
-    rule_id:    a.rule_id ?? null,
-    flow_id:    a.flow_id ?? null,
-    notes:      a.notes ?? [],
+    id:             a.alert_id ?? a.id,
+    ts:             a.detected_at ?? a.timestamp ?? new Date().toISOString(),
+    severity:       (a.severity ?? 'LOW').toLowerCase(),
+    type:           a.attack_type ?? a.type ?? 'Unknown',
+    src_ip:         a.src_ip ?? '—',
+    dst_ip:         a.dst_ip ?? '—',
+    dst_port:       a.dst_port ?? null,
+    protocol:       a.protocol ?? '—',
+    engine:         a.detected_by ?? a.engine ?? '—',
+    confidence:     a.confidence ?? a.confidence_score ?? 0,
+    sig_confidence: a.sig_confidence ?? null,
+    rf_confidence:  a.rf_confidence ?? null,
+    lstm_confidence:a.lstm_confidence ?? null,
+    if_confidence:  a.if_confidence ?? null,
+    status:         (a.status ?? 'NEW').toLowerCase().replace('new', 'open'),
+    rule_id:        a.rule_id ?? null,
+    flow_id:        a.flow_id ?? null,
+    notes:          a.notes ?? [],
   };
 }
 

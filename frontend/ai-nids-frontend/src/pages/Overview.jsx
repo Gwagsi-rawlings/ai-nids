@@ -5,13 +5,16 @@ import apiClient from '../api/client';
 
 /* ── API functions ───────────────────────────────────────── */
 const fetchRecentAlerts = () =>
-  apiClient.get('/api/v1/alerts?limit=5').then(r => r.data);
+  apiClient.get('/api/v1/alerts?page_size=5').then(r => r.data);
 
 const fetchStatus = () =>
   apiClient.get('/api/v1/status').then(r => r.data);
 
 const fetchModels = () =>
   apiClient.get('/api/v1/models').then(r => r.data);
+
+const fetchCaptureStats = () =>
+  apiClient.get('/api/v1/capture/stats').then(r => r.data);
 
 /* ── weight map for API model_name → ensemble weight ────── */
 const WEIGHT_MAP = {
@@ -20,14 +23,6 @@ const WEIGHT_MAP = {
   lstm:             0.15,
   signature_engine: 0.40,
 };
-
-/* ── fallback mock (shown until backend has real data) ───── */
-const ENGINE_STATUS = [
-  { name: 'Signature Engine', weight: 0.40, status: 'active', metric: '65 rules', metricLabel: 'loaded'    },
-  { name: 'Random Forest',    weight: 0.35, status: 'active', metric: '0.9867',   metricLabel: 'F1 score'  },
-  { name: 'Isolation Forest', weight: 0.10, status: 'active', metric: '0.0100',   metricLabel: 'FPR'       },
-  { name: 'LSTM',             weight: 0.15, status: 'pending',metric: 'Week 6',   metricLabel: 'scheduled' },
-];
 
 /* ── normalise API model record → EngineCard shape ─────── */
 function normaliseModel(m) {
@@ -94,20 +89,6 @@ function EngineCard({ engine }) {
 }
 
 /* ── live pps ticker ─────────────────────────────────────── */
-function PpsTicker() {
-  const [pps, setPps] = useState(8423);
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPps(p => Math.max(4000, Math.min(12000, p + (Math.random() - 0.5) * 800 | 0)));
-    }, 1200);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <span className="pps-ticker">
-      {pps.toLocaleString()} <span className="text-muted">pkt/s</span>
-    </span>
-  );
-}
 
 /* ── main component ──────────────────────────────────────── */
 export default function Overview() {
@@ -130,17 +111,40 @@ export default function Overview() {
     staleTime: 60_000,
   });
 
+  const { data: captureStats } = useQuery({
+    queryKey: ['capture', 'stats'],
+    queryFn: fetchCaptureStats,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+
   // ── FIX: handle all possible API response shapes ──────────
   const alerts      = alertsData?.alerts ?? alertsData?.items ?? alertsData ?? [];
   const activeCount = alertsData?.total  ?? alerts.filter(a =>
     (a.status ?? 'NEW').toUpperCase() === 'NEW').length;
 
-  // Normalise API response to component shape; fall back to static mock
-  const engineList = Array.isArray(modelsData) && modelsData.length
-    ? modelsData.map(normaliseModel)
-    : ENGINE_STATUS;
+  const engineList = statusData?.detection_engines
+    ? Object.entries(statusData.detection_engines).map(([key, engine]) => ({
+        name: {
+          signature: 'Signature Engine',
+          random_forest: 'Random Forest',
+          isolation_forest: 'Isolation Forest',
+          lstm: 'LSTM',
+        }[key] ?? key,
+        weight: statusData?.ensemble?.weights?.[key] ?? WEIGHT_MAP[key] ?? 0,
+        status: engine.status === 'active' ? 'active' : 'pending',
+        metric: key === 'signature'
+          ? `${engine.rules_loaded ?? 0} rules`
+          : engine.status === 'active'
+            ? 'ready'
+            : 'not trained',
+        metricLabel: key === 'signature' ? 'loaded' : 'status',
+      }))
+    : Array.isArray(modelsData) && modelsData.length
+      ? modelsData.map(normaliseModel)
+      : [];
 
-  const pipeline = statusData?.stages ?? null;
+  const pipeline = statusData?.pipeline_stages ?? null;
 
   return (
     <div className="page">
@@ -173,7 +177,7 @@ export default function Overview() {
         <StatCard value={activeCount}        label="Active Alerts"    delta="▲ 1 last hour"  deltaDir="up"   accent="var(--critical)" />
         <StatCard value="91.3%"              label="Detection Rate"   delta="↑ 0.4% vs base" deltaDir="down" accent="var(--ok)"       />
         <StatCard value="0.0114"             label="Ensemble FPR"     delta="↓ 84% vs sig."  deltaDir="down" accent="var(--accent)"   />
-        <StatCard value={<PpsTicker />}      label="Throughput"       delta="Target ≥10K"    deltaDir=""     accent="var(--low)"      />
+        <StatCard value={captureStats ? `${Math.round(captureStats.bytes_per_sec).toLocaleString()} Bps` : '—'} label="Throughput" delta={captureStats ? `${Math.round(captureStats.packets_per_sec).toLocaleString()} pkt/s` : 'Loading…'} deltaDir="" accent="var(--low)" />
       </div>
 
       {/* main grid: alerts + engines */}

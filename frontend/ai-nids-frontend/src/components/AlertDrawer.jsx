@@ -36,33 +36,33 @@ function ConfMeter({ value }) {
   );
 }
 
-function EnsembleBreakdown({ engine, confidence }) {
-  /* mock per-engine weights for the selected alert */
-  const weights = { Signature: 0.40, RF: 0.35, LSTM: 0.15, IF: 0.10, Ensemble: 1.0 };
+function EnsembleBreakdown({ alert }) {
   const engines = [
-    { name: 'Signature', weight: 0.40, active: engine === 'Signature', conf: engine === 'Signature' ? confidence : null },
-    { name: 'RF',        weight: 0.35, active: engine === 'RF',        conf: engine === 'RF'        ? confidence : null },
-    { name: 'LSTM',      weight: 0.15, active: false,                  conf: null, pending: true },
-    { name: 'IF',        weight: 0.10, active: engine === 'IF',        conf: engine === 'IF'        ? confidence : null },
+    { name: 'Signature', weight: 0.40, conf: alert.sig_confidence },
+    { name: 'RF',        weight: 0.35, conf: alert.rf_confidence },
+    { name: 'LSTM',      weight: 0.15, conf: alert.lstm_confidence },
+    { name: 'IF',        weight: 0.10, conf: alert.if_confidence },
+    { name: 'Ensemble',  weight: 1.00, conf: alert.confidence },
   ];
+
   return (
     <div className="drawer-ensemble">
       {engines.map(e => (
-        <div key={e.name} className={`drawer-eng-row ${e.active ? 'drawer-eng-row--active' : ''} ${e.pending ? 'drawer-eng-row--pending' : ''}`}>
-          <span className={`dot ${e.active ? 'dot-ok' : e.pending ? 'dot-muted' : 'dot-muted'}`} />
+        <div key={e.name} className={`drawer-eng-row ${e.conf !== null ? 'drawer-eng-row--active' : 'drawer-eng-row--pending'}`}>
+          <span className={`dot ${e.conf !== null ? 'dot-ok' : 'dot-muted'}`} />
           <span className="drawer-eng-name">{e.name}</span>
           <span className="drawer-eng-weight">w={e.weight.toFixed(2)}</span>
           <div className="drawer-eng-bar-wrap">
             <div
               className="drawer-eng-bar"
               style={{
-                width: e.conf ? `${e.conf * 100}%` : '0%',
-                background: e.active ? 'var(--accent)' : 'var(--border-bright)',
+                width: e.conf !== null ? `${Math.min(1, Math.max(0, e.conf)) * 100}%` : '0%',
+                background: e.conf !== null ? 'var(--accent)' : 'var(--border-bright)',
               }}
             />
           </div>
           <span className="drawer-eng-conf">
-            {e.pending ? 'Wk 6' : e.conf ? e.conf.toFixed(3) : '0.000'}
+            {e.conf !== null ? e.conf.toFixed(3) : '—'}
           </span>
         </div>
       ))}
@@ -282,8 +282,7 @@ export default function AlertDrawer({ alert, open, onClose, onAck, onFP, onAddNo
             <div className="drawer-section animate-fade-up">
               <div className="drawer-block">
                 <div className="drawer-block-title">DETECTION ENGINE BREAKDOWN</div>
-                <EnsembleBreakdown engine={alert.engine} confidence={alert.confidence} />
-              </div>
+          <EnsembleBreakdown alert={alert} />
 
               <div className="drawer-block">
                 <div className="drawer-block-title">SCORE COMPONENTS</div>

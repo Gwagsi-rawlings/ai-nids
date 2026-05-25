@@ -79,6 +79,16 @@ class AlertCreate(BaseModel):
         return v.lower()
 
 
+class AlertNote(BaseModel):
+    ts: Optional[datetime]
+    text: str
+
+
+class AlertNoteRequest(BaseModel):
+    """Body for POST /alerts/{id}/notes."""
+    text: str = Field(..., min_length=1, max_length=1000)
+
+
 class AlertResponse(BaseModel):
     """Full alert record returned to clients."""
     id: str
@@ -102,6 +112,7 @@ class AlertResponse(BaseModel):
     lstm_confidence: Optional[float]
     if_confidence: Optional[float]
     flow_id: Optional[str]
+    notes: List[AlertNote] = Field(default_factory=list)
     group_id: Optional[str]
 
     model_config = {"from_attributes": True}

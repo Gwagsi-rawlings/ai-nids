@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '../api/client';
 import './Sidebar.css';
 
 /* ── SVG icons ───────────────────────────────────────────── */
@@ -81,9 +83,9 @@ const SECTIONS = [
     label: 'DETECTION',
     items: [
       { to: '/',                  icon: 'Dashboard',        label: 'Overview',          end: true },
-      { to: '/alerts',            icon: 'Alerts',           label: 'Alert Queue',       badge: 3  },
+      { to: '/alerts',            icon: 'Alerts',           label: 'Alert Queue'       },
       { to: '/traffic',           icon: 'Traffic',          label: 'Live Traffic'                 },
-      { to: '/threat-detection',  icon: 'ThreatDetection',  label: 'Threat Detection'             }, // ← NEW
+      { to: '/threat-detection',  icon: 'ThreatDetection',  label: 'Threat Detection'             },
       { to: '/capture',           icon: 'Capture',          label: 'Capture',           pill: 'PCAP' },
     ],
   },
@@ -109,34 +111,46 @@ const SECTIONS = [
 ];
 
 /* ── engine status mini panel ────────────────────────────── */
-function EngineStatus() {
-  const engines = [
-    { name: 'Signature Engine', weight: '0.40', status: 'ok',    rules: 65     },
-    { name: 'Random Forest',    weight: '0.35', status: 'ok',    f1: '0.9867'  },
-    { name: 'Isolation Forest', weight: '0.10', status: 'ok',    fpr: '0.0100' },
-    { name: 'LSTM',             weight: '0.15', status: 'muted', note: 'Wk 6'  },
-  ];
+function EngineStatus({ statusData }) {
+  const engines = statusData?.detection_engines ?? {};
+  const weights = statusData?.ensemble?.weights ?? {};
+  const alertThreshold = statusData?.ensemble?.alert_threshold ?? 0.50;
+
+  const rows = [
+    { key: 'signature', label: 'Signature Engine' },
+    { key: 'random_forest', label: 'Random Forest' },
+    { key: 'isolation_forest', label: 'Isolation Forest' },
+    { key: 'lstm', label: 'LSTM' },
+  ].map(engine => ({
+    ...engine,
+    data: engines[engine.key] || null,
+    weight: weights[engine.key] ?? 0,
+  }));
 
   return (
     <div className="sidebar-engines">
       <div className="sidebar-section-label">ENSEMBLE</div>
-      {engines.map(e => (
-        <div key={e.name} className="sidebar-engine-row">
-          <span className={`dot dot-${e.status === 'ok' ? 'ok' : 'muted'}`} />
-          <span className="sidebar-engine-name">{e.name}</span>
-          <span className="sidebar-engine-weight">{e.weight}</span>
+      {rows.map(e => (
+        <div key={e.key} className="sidebar-engine-row">
+          <span className={`dot dot-${e.data?.status === 'active' ? 'ok' : 'muted'}`} />
+          <span className="sidebar-engine-name">{e.label}</span>
+          <span className="sidebar-engine-weight">{e.weight.toFixed(2)}</span>
         </div>
       ))}
       <div className="sidebar-threshold">
         <span className="text-muted">Alert threshold</span>
-        <span className="text-accent">≥ 0.50</span>
+        <span className="text-accent">≥ {alertThreshold.toFixed(2)}</span>
       </div>
     </div>
   );
 }
 
+const fetchStatus = () => apiClient.get('/api/v1/status').then(r => r.data);
+
 /* ── main component ──────────────────────────────────────── */
 export default function Sidebar({ open }) {
+  const { data: statusData } = useQuery({ queryKey: ['status'], queryFn: fetchStatus, staleTime: 20_000 });
+
   return (
     <aside className={`sidebar ${open ? 'sidebar--open' : 'sidebar--closed'}`}>
       <nav className="sidebar-nav">

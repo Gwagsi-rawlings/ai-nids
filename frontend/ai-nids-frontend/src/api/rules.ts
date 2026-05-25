@@ -1,19 +1,35 @@
 import apiClient from './client';
 
-// Temporary types — replace with your real types later
-interface CreateRulePayload {
-  name: string;
-  rule: string;
-  enabled: boolean;
-  description?: string;
+export interface RuleCreatePayload {
+  rule_id: string;
+  rule_name: string;
+  rule_content: string;
+  attack_category: string;
+  severity: string;
+  is_enabled: boolean;
 }
 
-interface RuleRecord extends CreateRulePayload {
-  id: string;
+export interface RuleRecord {
+  rule_id: string;
+  rule_name: string;
+  rule_content: string;
+  attack_category: string;
+  severity: string;
+  is_enabled: boolean;
+  version: number;
   created_at: string;
+  updated_at: string;
 }
 
-export const createRule = (payload: CreateRulePayload) =>
+export interface RuleListResponse {
+  total: number;
+  rules: RuleRecord[];
+}
+
+export const fetchRules = () =>
+  apiClient.get<RuleListResponse>('/rules').then(r => r.data);
+
+export const createRule = (payload: RuleCreatePayload) =>
   apiClient.post<RuleRecord>('/rules', payload).then(r => r.data);
 
 export const toggleRule = (id: string, enabled: boolean) =>
@@ -22,5 +38,5 @@ export const toggleRule = (id: string, enabled: boolean) =>
 export const deleteRule = (id: string) =>
   apiClient.delete(`/rules/${id}`).then(r => r.data);
 
-export const updateRule = (id: string, payload: Partial<CreateRulePayload>) =>
+export const updateRule = (id: string, payload: Partial<RuleCreatePayload>) =>
   apiClient.put(`/rules/${id}`, payload).then(r => r.data);
