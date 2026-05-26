@@ -282,7 +282,8 @@ export default function AlertDrawer({ alert, open, onClose, onAck, onFP, onAddNo
             <div className="drawer-section animate-fade-up">
               <div className="drawer-block">
                 <div className="drawer-block-title">DETECTION ENGINE BREAKDOWN</div>
-          <EnsembleBreakdown alert={alert} />
+                <EnsembleBreakdown alert={alert} />
+              </div>
 
               <div className="drawer-block">
                 <div className="drawer-block-title">SCORE COMPONENTS</div>
