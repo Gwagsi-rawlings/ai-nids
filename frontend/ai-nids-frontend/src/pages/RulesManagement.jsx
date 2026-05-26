@@ -370,8 +370,8 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
         </div>
 
         {/* Hits */}
-        <div style={{ padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: rule.hits > 0 ? C.amber : C.textDim, textAlign: "right" }}>
-          {rule.hits.toLocaleString()}
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: (rule.hits ?? 0) > 0 ? C.amber : C.textDim, textAlign: "right" }}>
+          {(rule.hits ?? 0).toLocaleString()}
         </div>
 
         {/* Toggle */}
@@ -418,15 +418,15 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
       {expanded && (
         <div style={{ background: "#0b140a", borderBottom: `1px solid ${C.borderHi}`, padding: "12px 20px 14px 50px" }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.9, wordBreak: "break-all" }}>
-            {highlightRule(rule.raw)}
+            {highlightRule(rule.rule_content)}
           </div>
           <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(5, auto)", gap: "4px 24px", width: "fit-content" }}>
             {[
-              ["PROTOCOL", rule.protocol?.toUpperCase()],
-              ["SRC", `${rule.src}:${rule.srcPort}`],
-              ["DST", `${rule.dst}:${rule.dstPort}`],
-              ["CREATED", rule.created],
-              ["HITS", rule.hits.toLocaleString()],
+              ["PROTOCOL", rule.protocol?.toUpperCase() ?? '—'],
+              ["SRC", `${rule.src ?? 'any'}:${rule.srcPort ?? 'any'}`],
+              ["DST", `${rule.dst ?? 'any'}:${rule.dstPort ?? 'any'}`],
+              ["CREATED", rule.created_at ? new Date(rule.created_at).toLocaleString() : '—'],
+              ["HITS", (rule.hits ?? 0).toLocaleString()],
             ].map(([k, v]) => (
               <div key={k}>
                 <div style={{ fontSize: 8, color: C.textDim, letterSpacing: 1 }}>{k}</div>

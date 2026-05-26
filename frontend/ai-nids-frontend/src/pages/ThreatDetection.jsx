@@ -185,6 +185,7 @@ export default function ThreatDetectionView() {
   const [feed, setFeed] = useState([]);
   const [fps, setFps] = useState(0);
   const frameTimes = useRef([]);
+  const feedRef = useRef(null);
 
   useEffect(() => {
     const normalized = initialAlerts.map(normaliseAlert).slice(0, 80);
