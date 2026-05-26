@@ -104,7 +104,7 @@ function StatusPill({ status }: { status: PcapJob["status"] }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function CapturePage() {
+export default function Capture() {
   const [liveState, setLiveState] = useState<LiveCaptureState>({ running: false, interface: "eth0", started_at: null });
   const [captureIface, setCaptureIface] = useState("eth0");
   const [stats, setStats] = useState<CaptureStats | null>(null);

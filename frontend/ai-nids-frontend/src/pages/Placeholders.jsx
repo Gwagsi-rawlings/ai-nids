@@ -2,8 +2,8 @@ import AlertQueue from './AlertQueue';
 import TrafficMonitor from './TrafficMonitor';
 import ThreatDetection from './ThreatDetection';
 import RulesManagement from './RulesManagement';
-import CapturePage from './Capture';
-import MLModelsPage from './MLModels';
+import Capture from './Capture';
+import MLModels from './MLModels';
 /* ─────────────────────────────────────────────────────────
    Placeholder pages — each will be fully implemented in
    subsequent sprints. They share a single file for brevity.

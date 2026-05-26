@@ -267,7 +267,7 @@ function ModelCard({ model, onRetrain, onReload, retraining }: {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function MLModelsPage() {
+export default function MLModels() {
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [retraining, setRetraining] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
