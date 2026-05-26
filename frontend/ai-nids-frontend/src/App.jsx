@@ -6,7 +6,7 @@ import TrafficMonitor from './pages/TrafficMonitor';
 import ThreatDetection from './pages/ThreatDetection';
 import RulesManagement from './pages/RulesManagement';
 import MLModels from './pages/MLModels';
-import Capure from './pages/Capture';
+import Capture from './pages/Capture';
 import {
   AnalyticsPage,
   AdminPage,

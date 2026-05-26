@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from infrastructure.db.database import get_db
 from infrastructure.db.models import DetectionRule
 from backend.api.schemas import (
-    RuleCreate, RuleUpdate, RuleResponse, RuleListResponse, MessageResponse,
+    RuleCreate, RuleUpdate, RuleResponse, RuleListResponse, MessageResponse, RuleToggle,
 )
 
 logger = logging.getLogger("ai-nids.rules")
@@ -196,7 +196,7 @@ async def delete_rule(rule_id: str, db: AsyncSession = Depends(get_db)):
     response_model=RuleResponse,
     summary="Enable or disable a rule without deleting it (FR4.13, FR11.7)",
 )
-async def toggle_rule(rule_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_rule(rule_id: str, payload: RuleToggle, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(DetectionRule).where(DetectionRule.rule_id == rule_id)
     )
@@ -204,7 +204,7 @@ async def toggle_rule(rule_id: str, db: AsyncSession = Depends(get_db)):
     if not rule:
         raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
 
-    rule.is_enabled = not rule.is_enabled
+    rule.is_enabled = payload.enabled
     rule.version += 1
     await db.flush()
 

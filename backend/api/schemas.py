@@ -28,7 +28,7 @@ class DetectionMethod(str, enum.Enum):
     HYBRID      = "HYBRID"
 
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 
 
 # ─────────────────────────────────────────────
@@ -159,6 +159,7 @@ class RuleResponse(BaseModel):
     version: int
     created_at: datetime
     updated_at: datetime
+    hits: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -185,6 +186,11 @@ class RuleUpdate(BaseModel):
     attack_category: Optional[str] = None
     severity: Optional[str] = None
     is_enabled: Optional[bool] = None
+
+
+class RuleToggle(BaseModel):
+    """Body for PATCH /rules/{id}/toggle."""
+    enabled: bool = Field(..., description="Whether to enable or disable the rule")
 
 
 # ─────────────────────────────────────────────
