@@ -1,52 +1,58 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '../api/client';
+import { useAlertStream } from '../hooks/useAlertStream';
+import { useAlertStore } from '../store/alert';
 
-// ── Simulated data ────────────────────────────────────────────────────────────
+// ── Live detection feed helpers ───────────────────────────────────────────────
 const ATTACK_CLASSES = ["BENIGN", "DoS", "DDoS", "PortScan", "BruteForce", "Botnet", "WebAttack", "Infiltration"];
 const SEVERITY_MAP = { BENIGN: null, DoS: "HIGH", DDoS: "HIGH", PortScan: "MEDIUM", BruteForce: "HIGH", Botnet: "CRITICAL", WebAttack: "MEDIUM", Infiltration: "CRITICAL" };
 const SEVERITY_COLOR = { CRITICAL: "#ff3b3b", HIGH: "#ff8c00", MEDIUM: "#f0c330", LOW: "#4ecdc4", null: "#3a9e5f" };
 
-function randomFloat(min, max) { return Math.random() * (max - min) + min; }
+const fetchRecentAlerts = () =>
+  apiClient.get('/api/v1/alerts?page_size=50').then(r => r.data.alerts ?? r.data ?? []);
 
-function generatePrediction(forceAttack = null) {
-  const attackClass = forceAttack || (Math.random() < 0.35
-    ? ATTACK_CLASSES[Math.floor(Math.random() * (ATTACK_CLASSES.length - 1)) + 1]
-    : "BENIGN");
-  const isAttack = attackClass !== "BENIGN";
+function normaliseProbabilities(attackClass, confidence) {
+  const primary = Math.min(0.94, confidence + 0.05);
+  const remainder = Math.max(0, 1 - primary);
+  const secondary = ATTACK_CLASSES.find((c) => c !== attackClass && c !== 'BENIGN') ?? 'BENIGN';
+  const probs = ATTACK_CLASSES.reduce((acc, cls) => {
+    acc[cls] = 0;
+    return acc;
+  }, {});
+  probs[attackClass] = primary;
+  probs['BENIGN'] = Math.max(0, remainder * 0.5);
+  probs[secondary] = Math.max(0, remainder * 0.5);
+  return probs;
+}
 
-  const rfConf    = isAttack ? randomFloat(0.62, 0.99) : randomFloat(0.01, 0.18);
-  const ifConf    = isAttack ? randomFloat(0.40, 0.88) : randomFloat(0.02, 0.12);
-  const lstmConf  = isAttack ? randomFloat(0.55, 0.95) : randomFloat(0.01, 0.15);
-  const sigConf   = isAttack && Math.random() > 0.4 ? randomFloat(0.70, 1.0) : 0;
-
-  const ensembleScore = 0.40 * sigConf + 0.35 * rfConf + 0.15 * lstmConf + 0.10 * ifConf;
-
-  const probs = ATTACK_CLASSES.map((c) => {
-    if (c === attackClass) return randomFloat(0.55, 0.92);
-    return randomFloat(0.0, 0.15);
-  });
-  const sum = probs.reduce((a, b) => a + b, 0);
-  const normalised = probs.map((p) => p / sum);
+function normaliseAlert(alert) {
+  const severity = (alert.severity ?? 'LOW').toUpperCase();
+  const confidence = Number(alert.confidence ?? (severity === 'CRITICAL' ? 0.97 : severity === 'HIGH' ? 0.90 : severity === 'MEDIUM' ? 0.75 : 0.55));
+  const sigConf = Number(alert.sig_confidence ?? confidence * 0.40);
+  const rfConf = Number(alert.rf_confidence ?? confidence * 0.35);
+  const lstmConf = Number(alert.lstm_confidence ?? confidence * 0.15);
+  const ifConf = Number(alert.if_confidence ?? confidence * 0.10);
+  const attackType = alert.attack_type ?? alert.type ?? 'Unknown';
 
   return {
-    id: Date.now() + Math.random(),
-    timestamp: new Date(),
-    flowId: `${randomHex(8)}-${randomHex(4)}`,
-    srcIp: `${rndInt(1,254)}.${rndInt(0,254)}.${rndInt(0,254)}.${rndInt(1,254)}`,
-    dstIp: `10.0.${rndInt(0,5)}.${rndInt(1,100)}`,
-    srcPort: rndInt(1024, 65535),
-    dstPort: [80, 443, 22, 21, 3389, 8080, 25][Math.floor(Math.random() * 7)],
-    protocol: ["TCP", "UDP", "ICMP"][Math.floor(Math.random() * 3)],
-    predictedClass: attackClass,
-    severity: SEVERITY_MAP[attackClass],
+    id: alert.alert_id ?? alert.id ?? String(Date.now()),
+    timestamp: alert.detected_at ?? alert.timestamp ?? new Date().toISOString(),
+    flowId: alert.flow_id ?? alert.alert_id ?? String(Date.now()),
+    srcIp: alert.src_ip ?? '—',
+    dstIp: alert.dst_ip ?? '—',
+    srcPort: alert.src_port ?? alert.dst_port ?? '—',
+    dstPort: alert.dst_port ?? '—',
+    protocol: alert.protocol ?? 'TCP',
+    predictedClass: attackType,
+    severity: severity.toLowerCase(),
     engines: { signature: sigConf, rf: rfConf, lstm: lstmConf, if: ifConf },
-    ensembleScore,
-    alert: ensembleScore >= 0.50,
-    classProbabilities: Object.fromEntries(ATTACK_CLASSES.map((c, i) => [c, normalised[i]])),
+    ensembleScore: confidence,
+    alert: ['open', 'new'].includes((alert.status ?? '').toLowerCase()) || confidence >= 0.50,
+    classProbabilities: normaliseProbabilities(attackType, confidence),
   };
 }
 
-function randomHex(n) { return [...Array(n)].map(() => Math.floor(Math.random() * 16).toString(16)).join(""); }
-function rndInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
 function fmt(n) { return (n * 100).toFixed(1) + "%"; }
 function fmtScore(n) { return n.toFixed(4); }
 function fmtTime(d) { return d.toTimeString().slice(0, 8) + "." + String(d.getMilliseconds()).padStart(3, "0"); }
@@ -215,59 +221,58 @@ function FeedRow({ pred, isSelected, onClick }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ThreatDetectionView() {
-  const [predictions, setPredictions] = useState(() =>
-    Array.from({ length: 18 }, () => generatePrediction())
-  );
+  useAlertStream();
+  const liveAlerts = useAlertStore((state) => state.alerts);
+  const { data: initialAlerts = [] } = useQuery({
+    queryKey: ['threat', 'recent'],
+    queryFn: fetchRecentAlerts,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
   const [selected, setSelected] = useState(null);
   const [isLive, setIsLive] = useState(true);
-  const [statsWindow, setStatsWindow] = useState({ total: 18, alerts: 0, fps: 0 });
   const [filterClass, setFilterClass] = useState("ALL");
-  const feedRef = useRef(null);
-  const frameCount = useRef(0);
-  const lastFpsTime = useRef(Date.now());
+  const [feed, setFeed] = useState([]);
+  const [fps, setFps] = useState(0);
+  const frameTimes = useRef([]);
 
-  // Init selected
   useEffect(() => {
-    const first = predictions.find(p => p.alert) || predictions[0];
-    setSelected(first);
-    const alerts = predictions.filter(p => p.alert).length;
-    setStatsWindow(s => ({ ...s, alerts }));
-  }, []);
+    const normalized = initialAlerts.map(normaliseAlert).slice(0, 80);
+    setFeed(normalized);
+    setSelected((prev) => prev ?? normalized[0] ?? null);
+  }, [initialAlerts]);
 
-  // Live feed ticker
+  useEffect(() => {
+    if (!isLive || !liveAlerts.length) return;
+    const latest = liveAlerts[0];
+    const id = latest.alert_id ?? latest.id;
+    setFeed((prev) => {
+      if (!id || prev.some((item) => item.id === id)) return prev;
+      return [normaliseAlert(latest), ...prev].slice(0, 80);
+    });
+  }, [liveAlerts, isLive]);
+
   useEffect(() => {
     if (!isLive) return;
-    const interval = setInterval(() => {
-      frameCount.current++;
-      const now = Date.now();
-      let fps = statsWindow.fps;
-      if (now - lastFpsTime.current >= 1000) {
-        fps = frameCount.current;
-        frameCount.current = 0;
-        lastFpsTime.current = now;
-      }
-
-      const newPred = generatePrediction();
-      setPredictions(prev => {
-        const updated = [newPred, ...prev].slice(0, 80);
-        const alerts = updated.filter(p => p.alert).length;
-        setStatsWindow({ total: updated.length, alerts, fps });
-        return updated;
-      });
-    }, 1200);
-    return () => clearInterval(interval);
-  }, [isLive]);
+    const now = Date.now();
+    frameTimes.current = frameTimes.current.filter((t) => t > now - 1000);
+    frameTimes.current.push(now);
+    setFps(frameTimes.current.length);
+  }, [feed, isLive]);
 
   const displayed = filterClass === "ALL"
-    ? predictions
-    : predictions.filter(p => p.predictedClass === filterClass);
+    ? feed
+    : feed.filter((p) => p.predictedClass === filterClass);
 
-  const sel = selected || predictions[0];
+  const sel = selected || feed[0];
   const topClass = sel
     ? Object.entries(sel.classProbabilities).sort((a, b) => b[1] - a[1])[0]?.[0]
     : null;
 
-  const alertRate = statsWindow.total ? ((statsWindow.alerts / statsWindow.total) * 100).toFixed(1) : "0.0";
+  const alertCount = feed.filter((p) => p.alert).length;
+  const alertRate = feed.length ? ((alertCount / feed.length) * 100).toFixed(1) : "0.0";
+  const statsWindow = { total: feed.length, alerts: alertCount, fps };
 
   return (
     <div style={{
