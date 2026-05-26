@@ -2,6 +2,8 @@ import AlertQueue from './AlertQueue';
 import TrafficMonitor from './TrafficMonitor';
 import ThreatDetection from './ThreatDetection';
 import RulesManagement from './RulesManagement';
+import CapturePage from './CapturePage';
+import MLModelsPage from './MLModelsPage';
 /* ─────────────────────────────────────────────────────────
    Placeholder pages — each will be fully implemented in
    subsequent sprints. They share a single file for brevity.
@@ -67,15 +69,8 @@ export function RulesPage() {
   return <RulesManagement />;
 }
 
-export function ModelsPage() {
-  return (
-    <PlaceholderPage
-      title="ML Models"
-      subtitle="Model registry · retraining · version rollback · FR5, FR19"
-      sprint="Week 6 (Apr 17–21)"
-      icon="🤖"
-    />
-  );
+export function MLModelsPage() {
+  return <MLModelsPage/>;
 }
 
 export function AnalyticsPage() {
@@ -101,12 +96,5 @@ export function AdminPage() {
 }
 
 export function CapturePage() {
-  return (
-    <PlaceholderPage
-      title="Packet Capture"
-      subtitle="Upload PCAP for analysis · live capture config · FR1.1, FR1.3"
-      sprint="Week 4 (Apr 1)"
-      icon="🔬"
-    />
-  );
+  return <CapturePage/>;
 }
