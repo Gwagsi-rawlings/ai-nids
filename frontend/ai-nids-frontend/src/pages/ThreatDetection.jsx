@@ -10,21 +10,7 @@ const SEVERITY_MAP = { BENIGN: null, DoS: "HIGH", DDoS: "HIGH", PortScan: "MEDIU
 const SEVERITY_COLOR = { CRITICAL: "#ff3b3b", HIGH: "#ff8c00", MEDIUM: "#f0c330", LOW: "#4ecdc4", null: "#3a9e5f" };
 
 const fetchRecentAlerts = () =>
-  apiClient.get('/api/v1/alerts?page_size=50').then(r => r.data.alerts ?? r.data ?? []);
-
-function normaliseProbabilities(attackClass, confidence) {
-  const primary = Math.min(0.94, confidence + 0.05);
-  const remainder = Math.max(0, 1 - primary);
-  const secondary = ATTACK_CLASSES.find((c) => c !== attackClass && c !== 'BENIGN') ?? 'BENIGN';
-  const probs = ATTACK_CLASSES.reduce((acc, cls) => {
-    acc[cls] = 0;
-    return acc;
-  }, {});
-  probs[attackClass] = primary;
-  probs['BENIGN'] = Math.max(0, remainder * 0.5);
-  probs[secondary] = Math.max(0, remainder * 0.5);
-  return probs;
-}
+  apiClient.get('/api/v1/alerts?page_size=80').then(r => r.data.alerts ?? r.data ?? []);
 
 function normaliseAlert(alert) {
   const severity = (alert.severity ?? 'LOW').toUpperCase();
@@ -37,7 +23,7 @@ function normaliseAlert(alert) {
 
   return {
     id: alert.alert_id ?? alert.id ?? String(Date.now()),
-    timestamp: alert.detected_at ?? alert.timestamp ?? new Date().toISOString(),
+    timestamp: new Date(alert.detected_at ?? alert.timestamp ?? new Date().toISOString()),
     flowId: alert.flow_id ?? alert.alert_id ?? String(Date.now()),
     srcIp: alert.src_ip ?? '—',
     dstIp: alert.dst_ip ?? '—',
@@ -49,7 +35,7 @@ function normaliseAlert(alert) {
     engines: { signature: sigConf, rf: rfConf, lstm: lstmConf, if: ifConf },
     ensembleScore: confidence,
     alert: ['open', 'new'].includes((alert.status ?? '').toLowerCase()) || confidence >= 0.50,
-    classProbabilities: normaliseProbabilities(attackType, confidence),
+    description: alert.description ?? '',
   };
 }
 
@@ -86,43 +72,6 @@ function EngineBar({ label, weight, conf, color }) {
           boxShadow: `0 0 6px ${color}60`,
         }} />
       </div>
-    </div>
-  );
-}
-
-function ClassProbRow({ label, prob, isTop }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
-        color: isTop ? "#e8eaf0" : "#4a5a75",
-        width: 80,
-        flexShrink: 0,
-      }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, height: 4, background: "#0d1520", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{
-          height: "100%",
-          width: (prob * 100).toFixed(1) + "%",
-          background: isTop
-            ? `linear-gradient(90deg, ${SEVERITY_COLOR[SEVERITY_MAP[label]] || "#3a9e5f"}80, ${SEVERITY_COLOR[SEVERITY_MAP[label]] || "#3a9e5f"})`
-            : "#1e3050",
-          borderRadius: 2,
-          transition: "width 0.5s ease",
-        }} />
-      </div>
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
-        color: isTop ? "#e8eaf0" : "#3a4a65",
-        width: 42,
-        textAlign: "right",
-        flexShrink: 0,
-      }}>
-        {fmt(prob)}
-      </span>
     </div>
   );
 }
@@ -266,9 +215,6 @@ export default function ThreatDetectionView() {
     : feed.filter((p) => p.predictedClass === filterClass);
 
   const sel = selected || feed[0];
-  const topClass = sel
-    ? Object.entries(sel.classProbabilities).sort((a, b) => b[1] - a[1])[0]?.[0]
-    : null;
 
   const alertCount = feed.filter((p) => p.alert).length;
   const alertRate = feed.length ? ((alertCount / feed.length) * 100).toFixed(1) : "0.0";
@@ -576,21 +522,14 @@ export default function ThreatDetectionView() {
                 <EngineBar label="ISOLATION FOREST" weight="0.10" conf={sel.engines.if}        color="#f0c330" />
               </div>
 
-              {/* Class probabilities */}
+              {/* Alert details */}
               <div style={{ padding: "12px 20px", flex: 1, overflowY: "auto" }}>
                 <div style={{ fontSize: 9, color: "#2a4060", letterSpacing: 2, marginBottom: 10 }}>
-                  CLASS PROBABILITY DISTRIBUTION (RF)
+                  ALERT DETAILS
                 </div>
-                {Object.entries(sel.classProbabilities)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([cls, prob]) => (
-                    <ClassProbRow
-                      key={cls}
-                      label={cls}
-                      prob={prob}
-                      isTop={cls === topClass}
-                    />
-                  ))}
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#8a9ab5", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  {sel.description || 'No additional details available.'}
+                </div>
               </div>
             </>
           ) : (
