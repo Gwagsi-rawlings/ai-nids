@@ -2,8 +2,8 @@ import AlertQueue from './AlertQueue';
 import TrafficMonitor from './TrafficMonitor';
 import ThreatDetection from './ThreatDetection';
 import RulesManagement from './RulesManagement';
-import CapturePage from './CapturePage';
-import MLModelsPage from './MLModelsPage';
+import CapturePage from './Capture';
+import MLModelsPage from './MLModels';
 /* ─────────────────────────────────────────────────────────
    Placeholder pages — each will be fully implemented in
    subsequent sprints. They share a single file for brevity.
@@ -70,7 +70,7 @@ export function RulesPage() {
 }
 
 export function MLModelsPage() {
-  return <MLModelsPage/>;
+  return <MLModels/>;
 }
 
 export function AnalyticsPage() {
@@ -96,5 +96,5 @@ export function AdminPage() {
 }
 
 export function CapturePage() {
-  return <CapturePage/>;
+  return <Capture/>;
 }
