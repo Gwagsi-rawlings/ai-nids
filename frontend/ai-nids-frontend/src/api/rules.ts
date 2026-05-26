@@ -27,16 +27,16 @@ export interface RuleListResponse {
 }
 
 export const fetchRules = () =>
-  apiClient.get<RuleListResponse>('/rules').then(r => r.data);
+  apiClient.get<RuleListResponse>('/api/v1/rules').then(r => r.data);
 
 export const createRule = (payload: RuleCreatePayload) =>
-  apiClient.post<RuleRecord>('/rules', payload).then(r => r.data);
+  apiClient.post<RuleRecord>('/api/v1/rules', payload).then(r => r.data);
 
 export const toggleRule = (id: string, enabled: boolean) =>
-  apiClient.patch(`/rules/${id}/toggle`, { enabled }).then(r => r.data);
+  apiClient.patch(`/api/v1/rules/${id}/toggle`, { enabled }).then(r => r.data);
 
 export const deleteRule = (id: string) =>
-  apiClient.delete(`/rules/${id}`).then(r => r.data);
+  apiClient.delete(`/api/v1/rules/${id}`).then(r => r.data);
 
 export const updateRule = (id: string, payload: Partial<RuleCreatePayload>) =>
-  apiClient.put(`/rules/${id}`, payload).then(r => r.data);
+  apiClient.put(`/api/v1/rules/${id}`, payload).then(r => r.data);

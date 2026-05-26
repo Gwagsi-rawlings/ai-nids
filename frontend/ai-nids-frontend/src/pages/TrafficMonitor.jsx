@@ -30,6 +30,7 @@ const PROTOCOL_COLORS = {
 };
 
 const HISTORY_LEN = 40;
+const WINDOW_LABELS = { '1m': '1m', '5m': '5m', '15m': '15m' };
 
 /* ── Helpers ── */
 function fmtNum(n = 0) {
