@@ -5,11 +5,11 @@ import AlertQueue from './pages/AlertQueue';
 import TrafficMonitor from './pages/TrafficMonitor';
 import ThreatDetection from './pages/ThreatDetection';
 import RulesManagement from './pages/RulesManagement';
+import MLModels from './pages/MLModels';
+import Capure from './pafes/Capture';
 import {
-  ModelsPage,
   AnalyticsPage,
   AdminPage,
-  CapturePage,
 } from './pages/Placeholders';
 
 export default function App() {
@@ -20,9 +20,9 @@ export default function App() {
           <Route index        element={<Overview />}      />
           <Route path="alerts"    element={<AlertQueue />} />
           <Route path="traffic"   element={<TrafficMonitor />}    />
-          <Route path="capture"   element={<CapturePage />}    />
+          <Route path="capture"   element={<Capture />}    />
           <Route path="rules"     element={<RulesManagement />}      />
-          <Route path="models"    element={<ModelsPage />}     />
+          <Route path="models"    element={<MLModels />}     />
           <Route path="analytics" element={<AnalyticsPage />}  />
           <Route path="admin"     element={<AdminPage />}      />
           <Route path="threat-detection"   element={<ThreatDetection />} />
