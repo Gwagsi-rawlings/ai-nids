@@ -4,6 +4,8 @@ import ThreatDetection from './ThreatDetection';
 import RulesManagement from './RulesManagement';
 import Capture from './Capture';
 import MLModels from './MLModels';
+import Analytics from './Analytics';
+import Admin from './Admin';
 /* ─────────────────────────────────────────────────────────
    Placeholder pages — each will be fully implemented in
    subsequent sprints. They share a single file for brevity.
@@ -74,25 +76,11 @@ export function MLModelsPage() {
 }
 
 export function AnalyticsPage() {
-  return (
-    <PlaceholderPage
-      title="Analytics & Reports"
-      subtitle="Threat trends · top attackers · PDF/CSV export · FR12, FR13"
-      sprint="Week 7 (Apr 26)"
-      icon="📊"
-    />
-  );
+  return <Analytics/>;
 }
 
 export function AdminPage() {
-  return (
-    <PlaceholderPage
-      title="System Administration"
-      subtitle="User management · SIEM config · system health · FR14, FR16, FR17"
-      sprint="Week 5 (Apr 10)"
-      icon="🛡️"
-    />
-  );
+  return <Admin/>;
 }
 
 export function CapturePage() {

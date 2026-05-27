@@ -7,10 +7,8 @@ import ThreatDetection from './pages/ThreatDetection';
 import RulesManagement from './pages/RulesManagement';
 import MLModels from './pages/MLModels';
 import Capture from './pages/Capture';
-import {
-  AnalyticsPage,
-  AdminPage,
-} from './pages/Placeholders';
+import Analytics from './pages/Analytics';
+import Admin from './pages/Admin';
 
 export default function App() {
   return (
@@ -23,8 +21,8 @@ export default function App() {
           <Route path="capture"   element={<Capture />}    />
           <Route path="rules"     element={<RulesManagement />}      />
           <Route path="models"    element={<MLModels />}     />
-          <Route path="analytics" element={<AnalyticsPage />}  />
-          <Route path="admin"     element={<AdminPage />}      />
+          <Route path="analytics" element={<Analytics />}  />
+          <Route path="admin"     element={<Admin />}      />
           <Route path="threat-detection"   element={<ThreatDetection />} />
         </Route>
       </Routes>
