@@ -5,10 +5,10 @@ import AlertQueue from './pages/AlertQueue';
 import TrafficMonitor from './pages/TrafficMonitor';
 import ThreatDetection from './pages/ThreatDetection';
 import RulesManagement from './pages/RulesManagement';
-import MLModels from './pages/MLModels';
-import Capture from './pages/Capture';
-import Analytics from './pages/Analytics';
-import Admin from './pages/Admin';
+import MLModels from './pages/MLModels.tsx';
+import Capture from './pages/Capture.tsx';
+import Analytics from './pages/Analytics.tsx';
+import Admin from './pages/Admin.tsx';
 
 export default function App() {
   return (

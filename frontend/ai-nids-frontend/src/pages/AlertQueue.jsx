@@ -9,9 +9,8 @@ const fetchAlerts = (filters) => {
   const params = {};
   if (filters.severity !== 'all') params.severity = filters.severity.toUpperCase();
   if (filters.status   !== 'all') params.status   = filters.status.toUpperCase();
-  if (filters.engine)             params.engine   = filters.engine;
-  if (filters.q)                  params.q        = filters.q;
-  params.limit = 200;
+  params.page_size = 200;
+  // Note: 'engine' and 'q' filters are applied client-side after fetch
   return apiClient.get('/api/v1/alerts', { params }).then(r => r.data);
 };
 

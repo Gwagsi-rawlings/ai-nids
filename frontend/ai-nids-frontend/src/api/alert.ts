@@ -9,7 +9,7 @@ interface AlertFilters {
 }
 
 export const fetchAlerts = (filters: AlertFilters) =>
-  apiClient.get('/alerts', { params: filters }).then(r => r.data);
+  apiClient.get('/api/v1/alerts', { params: filters }).then(r => r.data);
 
 export const acknowledgeAlert = (id: string) =>
-  apiClient.patch(`/alerts/${id}/acknowledge`).then(r => r.data);
+  apiClient.patch(`/api/v1/alerts/${id}/acknowledge`).then(r => r.data);
