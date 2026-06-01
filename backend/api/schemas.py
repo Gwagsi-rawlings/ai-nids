@@ -203,10 +203,10 @@ class MessageResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
 # --- ML Model schema ---
 from pydantic import ConfigDict
-from datetime import datetime
-from typing import Optional
 
 class MLModelRead(BaseModel):
     id: int
@@ -227,15 +227,15 @@ class AlertRead(BaseModel):
     confidence: float = 0.0
     is_false_positive: bool = False
     created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
 
-
-import enum
 
 class SeverityLevel(str, enum.Enum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
 
 class DetectionEvent(BaseModel):
     flow_id: str
@@ -256,12 +256,4 @@ class DetectionEvent(BaseModel):
     description: str = ''
     severity: SeverityLevel = SeverityLevel.LOW
     confidence: float = 0.0
-    timestamp: datetime = None
-
-class AlertCreate(BaseModel):
-    flow_id: str
-    attack_class: str
-    severity: SeverityLevel
-    confidence: float
-    src_ip: str
-    dst_ip: str
+    timestamp: Optional[datetime] = None

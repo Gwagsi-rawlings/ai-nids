@@ -321,27 +321,6 @@ if __name__ == "__main__":
     print("="*60)
 
 
-
-
-
-    """
-AI-NIDS — Signature Detection Engine: Rule Parser
-===================================================
-Parses Snort-compatible rule files into structured RuleRecord objects
-for use by the Aho-Corasick signature matching engine.
-
-FR Traceability:
-    FR4.1  — Match packets against signature-based detection rules
-    FR4.2  — Support Snort-like rule syntax
-    FR4.3  — Parse detection rules from text files
-    FR4.4  — Support pattern matching on packet content
-    FR4.5  — Support pattern matching on packet headers
-    FR4.6  — Support multiple conditions in a single rule (AND logic)
-    FR4.13 — Allow enabling/disabling individual rules
-
-March 23, 2026 | Sprint 1, Week 2
-"""
-
 import re
 import logging
 from dataclasses import dataclass, field

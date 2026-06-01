@@ -197,7 +197,10 @@ export default function Admin() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const [h, s] = await Promise.all([apiFetch("/health" . replace("/api/v1", "")), apiFetch("/status")]);
+      const [h, s] = await Promise.all([
+        fetch("/health", { headers: { Authorization: `Bearer ${getToken()}` } }).then((r) => r.json()),
+        apiFetch("/status"),
+      ]);
       setHealth(h);
       setPipeStatus(s);
     } catch {

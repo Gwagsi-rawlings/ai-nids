@@ -118,13 +118,12 @@ async def process_detection_event(
         protocol=event.protocol,
         detected_by=event.detection_method.value if hasattr(event.detection_method, 'value') else (event.detection_method or 'ml'),
         description=event.description or _alert_description(event),
-        rule_id=event.matched_rule_id,
         flow_id=event.flow_id,
         sig_confidence=event.sig_confidence,
         rf_confidence=event.rf_confidence,
         lstm_confidence=event.lstm_confidence,
         if_confidence=event.if_confidence,
-        status="NEW",
+        status="open",
     )
 
     # Generate a stable UUID for this alert before DB flush
@@ -212,7 +211,7 @@ async def acknowledge_alert(
     if not alert:
         return None
 
-    alert.status = "ACKNOWLEDGED"
+    alert.status = "acknowledged"
     alert.acknowledged_by = acknowledged_by
     alert.acknowledged_at = datetime.now(timezone.utc)
     await db.flush()
@@ -221,7 +220,15 @@ async def acknowledge_alert(
     cache = get_cache()
     await cache.delete(f"nids:cache:alert:{alert_id}")
 
-    return AlertRead.model_validate(alert)
+    return AlertRead(
+        id=str(alert.id),
+        flow_id=str(alert.flow_id) if alert.flow_id else "",
+        severity=alert.severity or "LOW",
+        attack_class=alert.attack_type or "BENIGN",
+        confidence=float(alert.confidence) if alert.confidence is not None else 0.0,
+        is_false_positive=(alert.status == "false_positive"),
+        created_at=alert.detected_at,
+    )
 
 
 async def get_live_stats() -> dict:

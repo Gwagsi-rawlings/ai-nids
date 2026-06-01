@@ -36,9 +36,9 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from db.database import AsyncSessionLocal
-from db.models import Alert
-from db import redis_client
+from infrastructure.db.database import AsyncSessionLocal
+from infrastructure.db.models import Alert
+from infrastructure.db import redis_client
 
 logger = logging.getLogger("ai-nids.connector")
 

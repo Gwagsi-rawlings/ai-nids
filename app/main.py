@@ -29,6 +29,7 @@ FR Traceability:
 April 6, 2026 | Sprint 1, Week 4
 """
 
+import asyncio
 import logging
 import os
 import time
