@@ -24,9 +24,7 @@ WORKDIR /app
 # libnet-dev   : optional low-level networking support
 # build-essential : needed to compile some Python C extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpcap-dev \
-    libnet-dev \
-    build-essential \
+    libpcap0.8 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
