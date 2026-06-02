@@ -81,7 +81,7 @@ function EngineCard({ engine }) {
       <div className="engine-bar-wrap">
         <div
           className="engine-bar"
-          style={{ width: `${engine.weight * 100 / 0.40 * 100}%` }}
+          style={{ width: `${engine.weight / 0.40 * 100}%` }}
         />
       </div>
     </div>
@@ -144,7 +144,13 @@ export default function Overview() {
       ? modelsData.map(normaliseModel)
       : [];
 
-  const pipeline = statusData?.pipeline_stages ?? null;
+  const pipeline = statusData?.pipeline_stages
+    ? Object.entries(statusData.pipeline_stages).map(([key, val]) => ({
+        stage: key.replace(/_/g, ' '),
+        status: (val === 'active' || val === 'ready' || val.startsWith('active')) ? 'ok' : 'pending',
+        note: val,
+      }))
+    : null;
 
   return (
     <div className="page">

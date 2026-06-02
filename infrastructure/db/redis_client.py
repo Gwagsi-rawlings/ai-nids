@@ -108,6 +108,8 @@ async def get_cached_alert(alert_id: str) -> Optional[dict]:
         return None
 
 
+ALERT_PUBSUB_CHANNEL = "nids:alerts:new"
+
 async def publish_alert_event(alert_data: dict):
     """
     Publish a new-alert event to Redis Pub/Sub channel.
@@ -115,7 +117,7 @@ async def publish_alert_event(alert_data: dict):
     """
     try:
         stream = get_stream()
-        await stream.publish("nids:alerts:live", json.dumps(alert_data, default=str))
+        await stream.publish(ALERT_PUBSUB_CHANNEL, json.dumps(alert_data, default=str))
     except Exception as e:
         logger.warning(f"Redis publish_alert_event failed: {e}")
 

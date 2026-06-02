@@ -184,7 +184,7 @@ export default function Sidebar({ open }) {
       </nav>
 
       {/* engine status at bottom */}
-      <EngineStatus />
+      <EngineStatus statusData={statusData} />
 
       {/* version footer */}
       <div className="sidebar-footer">

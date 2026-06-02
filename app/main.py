@@ -192,13 +192,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
  
+_cors_extra = os.getenv("CORS_ORIGINS", "")
+_cors_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+]
+if _cors_extra:
+    _cors_origins.extend([o.strip() for o in _cors_extra.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",   # React dev server
-        "http://localhost:3001",   # Vite dev server (current)
-        "http://localhost:5173",   # Vite default
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -235,11 +240,9 @@ async def health():
         },
     }
  
-# At the top, with other imports:
 from backend.api.routers import auth as auth_router
 
-# Inside your app definition, after middleware:
-app.include_router(auth_router.router)
+app.include_router(auth_router.router, prefix="/api/v1")
  
 @app.get("/", include_in_schema=False)
 async def root():

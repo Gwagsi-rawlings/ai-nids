@@ -3,32 +3,85 @@ services:
   postgres:
     image: postgres:15
     container_name: nids_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: nids_user
-      POSTGRES_PASSWORD: nids_password
-      POSTGRES_DB: nids_db
+      POSTGRES_USER: ${POSTGRES_USER:-nids_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nids_password}
+      POSTGRES_DB: ${POSTGRES_DB:-nids_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nids_user} -d ${POSTGRES_DB:-nids_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: nids_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: nids_api
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://nids_user:nids_password@postgres:5432/nids_db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-nids_user}:${POSTGRES_PASSWORD:-nids_password}@postgres:5432/${POSTGRES_DB:-nids_db}
       - REDIS_URL=redis://redis:6379/0
+      - REDIS_CACHE_URL=redis://redis:6379/1
+      - REDIS_SESSION_URL=redis://redis:6379/2
+      - SECRET_KEY=${SECRET_KEY:-changeme-set-a-real-secret-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CAPTURE_MODE=${CAPTURE_MODE:-standby}
+      - PCAP_PATH=${PCAP_PATH:-}
+      - MODEL_DIR=/app/backend/detection/models
+      - RULES_DIR=/app/rules
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    volumes:
+      - ./backend/detection/models:/app/backend/detection/models:ro
+      - ./rules:/app/rules:ro
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend/ai-nids-frontend
+      dockerfile: Dockerfile
+    container_name: nids_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health.txt"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 volumes:
   postgres_data:

@@ -173,7 +173,7 @@ async def _redis_listener() -> None:
     Background task: subscribe to Redis alert channel and fan-out to WebSocket clients.
     Started once at application startup.
     """
-    from app.services.alert_service import ALERT_PUBSUB_CHANNEL
+    from infrastructure.db.redis_client import ALERT_PUBSUB_CHANNEL
 
     redis = await get_redis()
     pubsub = redis.pubsub()

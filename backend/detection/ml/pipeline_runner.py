@@ -64,7 +64,7 @@ async def _stats_worker(feature_q: asyncio.Queue, start_time: float) -> None:
 
     while True:
         try:
-            cache = await get_cache()
+            cache = get_cache()
             await cache.hset(
                 "nids:cache:stats:live",
                 mapping={

@@ -34,7 +34,8 @@ FROM base AS dependencies
 COPY backend/requirements.txt .
 
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+        -r requirements.txt
 
 # ── Stage 3: Application ─────────────────────────────────────
 FROM dependencies AS app

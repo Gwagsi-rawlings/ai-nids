@@ -328,7 +328,7 @@ async def get_alert(
 )
 async def acknowledge_alert(
     alert_id: str,
-    body: AlertAcknowledge,
+    body: Optional[AlertAcknowledge] = None,
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Alert).where(Alert.alert_id == alert_id))
@@ -343,7 +343,7 @@ async def acknowledge_alert(
 
     alert.status = "acknowledged"
     alert.acknowledged_at = datetime.now(timezone.utc)
-    if body.note:
+    if body and body.note:
         note_line = _format_note_line(body.note)
         if note_line:
             alert.description = alert.description + ("\n" if alert.description else "") + note_line

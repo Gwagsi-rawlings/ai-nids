@@ -209,13 +209,18 @@ class ErrorResponse(BaseModel):
 from pydantic import ConfigDict
 
 class MLModelRead(BaseModel):
-    id: int
-    name: str
+    id: str
+    model_name: str
+    model_type: str
     version: str
-    algorithm: str
-    is_active: bool
+    file_path: str
+    training_dataset: Optional[str] = None
     accuracy: Optional[float] = None
-    created_at: datetime
+    f1_score: Optional[float] = None
+    false_pos_rate: Optional[float] = None
+    is_active: bool
+    trained_at: datetime
+    deployed_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 
