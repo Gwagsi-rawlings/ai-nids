@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchRules, createRule, toggleRule as toggleRuleApi, deleteRule as deleteRuleApi, updateRule as updateRuleApi } from '../api/rules';
 
 // ── Palette & constants ───────────────────────────────────────────────────────
@@ -443,7 +443,9 @@ function RuleRow({ rule, expanded, onExpand, onToggle, onEdit, onDelete }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function RulesManagement() {
   const queryClient = useQueryClient();
-  const { data: rulesData, isLoading, isError } = useQuery(['rules'], fetchRules, {
+  const { data: rulesData, isLoading, isError } = useQuery({
+    queryKey: ['rules'],
+    queryFn: fetchRules,
     staleTime: 30_000,
   });
 

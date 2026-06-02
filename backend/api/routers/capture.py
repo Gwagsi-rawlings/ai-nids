@@ -71,26 +71,36 @@ class PcapJob(BaseModel):
 @router.get("/stats", response_model=TrafficStats, summary="Live packet capture traffic statistics")
 async def capture_stats(db: AsyncSession = Depends(get_db)):
     """Return current packet capture traffic statistics for the dashboard."""
-    live_stats = await get_live_stats_service()
+    try:
+        live_stats = await get_live_stats_service()
+    except Exception:
+        live_stats = {}
+
     packets_per_sec = float(live_stats.get("packets_per_second", 0)) if live_stats else 0.0
     bytes_per_sec = float(live_stats.get("bytes_per_second", 0)) if live_stats else 0.0
 
     protocol_distribution: Dict[str, int] = {}
-    result = await db.execute(
-        select(Alert.protocol, func.count()).group_by(Alert.protocol)
-    )
-    for protocol, count in result.all():
-        protocol_distribution[protocol or "Other"] = count
+    try:
+        result = await db.execute(
+            select(Alert.protocol, func.count()).group_by(Alert.protocol)
+        )
+        for protocol, count in result.all():
+            protocol_distribution[protocol or "Other"] = count
+    except Exception:
+        pass
 
     top_source_ips = []
-    result = await db.execute(
-        select(Alert.src_ip, func.count())
-        .group_by(Alert.src_ip)
-        .order_by(func.count().desc())
-        .limit(5)
-    )
-    for src_ip, count in result.all():
-        top_source_ips.append({"ip": src_ip, "pps": float(count)})
+    try:
+        result = await db.execute(
+            select(Alert.src_ip, func.count())
+            .group_by(Alert.src_ip)
+            .order_by(func.count().desc())
+            .limit(5)
+        )
+        for src_ip, count in result.all():
+            top_source_ips.append({"ip": src_ip, "pps": float(count)})
+    except Exception:
+        pass
 
     return {
         "packets_per_sec": packets_per_sec,

@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import apiClient from "../api/client";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -28,16 +29,6 @@ interface Summary {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-const getToken = () => localStorage.getItem("nids_token") || "";
-const apiFetch = async (path: string, opts: RequestInit = {}) => {
-  const res = await fetch(`/api/v1${path}`, {
-    ...opts,
-    headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json", ...(opts.headers || {}) },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
-};
 
 const fmt = (n: number) => n.toLocaleString();
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -177,7 +168,7 @@ export default function Analytics() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch(`/analytics/summary?range=${range}`);
+      const data = await apiClient.get<Summary>("/api/v1/analytics/summary", { params: { range } }).then(r => r.data);
       setSummary(data);
     } catch (e: any) {
       setError(e.message || "Failed to load analytics data");
@@ -192,13 +183,11 @@ export default function Analytics() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch("/api/v1/reports/generate", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ range, format: "pdf" }),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const blob = await res.blob();
+      const blob = await apiClient.post(
+        "/api/v1/reports/generate",
+        { range, format: "pdf" },
+        { responseType: "blob" }
+      ).then(r => r.data);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -215,11 +204,10 @@ export default function Analytics() {
 
   const handleExportCsv = async () => {
     try {
-      const res = await fetch(`/api/v1/alerts/export?format=csv&range=${range}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const blob = await res.blob();
+      const blob = await apiClient.get("/api/v1/alerts/export", {
+        params: { format: "csv", range },
+        responseType: "blob",
+      }).then(r => r.data);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
