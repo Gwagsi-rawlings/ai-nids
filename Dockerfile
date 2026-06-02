@@ -3,7 +3,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --timeout=300 -r requirements.txt
+RUN pip install --no-cache-dir --timeout=300 -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY . .
 
