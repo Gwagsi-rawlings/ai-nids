@@ -106,7 +106,7 @@ VALUES (
     'admin',
     'admin@ai-nids.local',
     'system_admin',
-    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCgOFEh9EbCaAcvLJf2m6jS'
+    '$2b$12$szcetSaJzcfrLS2NdaAU0.Q6/EK.djFpg/BKUJ.bVCdYDfceELnCm'
 )
 ON CONFLICT DO NOTHING;
 
