@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuthStore } from '../store/auth';
 import './TopBar.css';
 
 /* ── tiny live clock ─────────────────────────────────────── */
@@ -44,6 +45,13 @@ function HealthPill({ status = 'ok' }) {
 
 /* ── main component ──────────────────────────────────────── */
 export default function TopBar({ onMenuToggle, sidebarOpen }) {
+  const { logout } = useAuthStore();
+
+  function handleLogout() {
+    logout();
+    window.location.replace('/login');
+  }
+
   return (
     <header className="topbar">
       {/* left: hamburger + wordmark */}
@@ -103,6 +111,16 @@ export default function TopBar({ onMenuToggle, sidebarOpen }) {
             <span className="topbar-role">SYSTEM_ADMIN</span>
           </div>
         </div>
+
+        {/* logout */}
+        <button className="topbar-icon-btn" title="Sign out" onClick={handleLogout}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
       </div>
     </header>
   );
