@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import './Overview.css';
 import apiClient from '../api/client';
+import { fetchCaptureStatus, startCapture, stopCapture } from '../api/capture';
 
 /* ── API functions ───────────────────────────────────────── */
 const fetchRecentAlerts = () =>
@@ -92,6 +93,9 @@ function EngineCard({ engine }) {
 
 /* ── main component ──────────────────────────────────────── */
 export default function Overview() {
+  const queryClient = useQueryClient();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [captureIface, setCaptureIface] = useState('eth0');
 
   const { data: alertsData } = useQuery({
     queryKey: ['alerts', 'recent'],
@@ -117,6 +121,31 @@ export default function Overview() {
     staleTime: 10_000,
     refetchInterval: 15_000,
   });
+
+  const { data: captureStatusData } = useQuery({
+    queryKey: ['capture', 'liveStatus'],
+    queryFn: fetchCaptureStatus,
+    refetchInterval: 5_000,
+  });
+
+  const isRunning = captureStatusData?.running ?? false;
+
+  const startMutation = useMutation({
+    mutationFn: () => startCapture(captureIface),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['capture', 'liveStatus'] }),
+  });
+
+  const stopMutation = useMutation({
+    mutationFn: stopCapture,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['capture', 'liveStatus'] }),
+  });
+
+  const isCaptureLoading = startMutation.isPending || stopMutation.isPending;
+
+  const handleCaptureToggle = () => {
+    if (isRunning) stopMutation.mutate();
+    else startMutation.mutate();
+  };
 
   // ── FIX: handle all possible API response shapes ──────────
   const alerts      = alertsData?.alerts ?? alertsData?.items ?? alertsData ?? [];
@@ -155,6 +184,44 @@ export default function Overview() {
   return (
     <div className="page">
 
+      {/* settings modal */}
+      {settingsOpen && (
+        <div className="settings-overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="settings-modal" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <span className="card-title">Capture Settings</span>
+              <button className="btn btn-ghost" style={{ padding: '2px 8px', fontSize: 14 }} onClick={() => setSettingsOpen(false)}>✕</button>
+            </div>
+            <div className="settings-modal-body">
+              <div className="settings-field">
+                <label className="settings-label">Network Interface</label>
+                <input
+                  className="settings-input"
+                  value={captureIface}
+                  onChange={e => setCaptureIface(e.target.value)}
+                  placeholder="eth0"
+                  disabled={isRunning}
+                />
+                <span className="settings-hint">Interface used for live packet capture. Requires NET_ADMIN capability.</span>
+              </div>
+              <div className="settings-field">
+                <label className="settings-label">Capture Mode</label>
+                <div className="settings-info-row">
+                  <span className={`dot ${isRunning ? 'dot-ok dot-pulse' : 'dot-muted'}`} />
+                  <span style={{ color: isRunning ? 'var(--ok)' : 'var(--text-secondary)', fontSize: 12 }}>
+                    {isRunning ? `Live — capturing on ${captureStatusData?.interface ?? captureIface}` : 'Idle — PCAP replay or standby'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="settings-modal-footer">
+              <button className="btn btn-ghost" onClick={() => setSettingsOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => setSettingsOpen(false)} disabled={isRunning}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* page header */}
       <div className="page-header">
         <div>
@@ -164,16 +231,37 @@ export default function Overview() {
           </p>
         </div>
         <div className="page-actions">
-          <div className="capture-status">
-            <span className="dot dot-ok dot-pulse" />
-            <span>PCAP MODE</span>
+          <div className={`capture-status${isRunning ? ' capture-status--live' : ''}`}>
+            <span className={`dot ${isRunning ? 'dot-ok dot-pulse' : 'dot-muted'}`} />
+            <span>{isRunning ? 'LIVE MODE' : 'PCAP MODE'}</span>
           </div>
-          <button className="btn btn-primary">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="5 3 19 12 5 21 5 3"/>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setSettingsOpen(true)}
+            title="Capture Settings"
+            style={{ padding: '6px 10px' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            START LIVE CAPTURE
+          </button>
+          <button
+            className={`btn ${isRunning ? 'btn-danger' : 'btn-primary'}`}
+            onClick={handleCaptureToggle}
+            disabled={isCaptureLoading}
+          >
+            {isRunning ? (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="1"/>
+              </svg>
+            ) : (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            )}
+            {isCaptureLoading ? '…' : isRunning ? 'STOP CAPTURE' : 'START LIVE CAPTURE'}
           </button>
         </div>
       </div>

@@ -66,6 +66,18 @@ class PcapJob(BaseModel):
     error_message: Optional[str]
 
 
+# ── GET /capture/status ────────────────────────────────────────────────────
+
+@router.get("/status", response_model=LiveCaptureStatus, summary="Get live capture state")
+async def get_capture_status():
+    """Return the current live capture running state."""
+    return LiveCaptureStatus(
+        running=_live_state["running"],
+        interface=_live_state["interface"],
+        started_at=_live_state["started_at"],
+    )
+
+
 # ── GET /capture/stats ─────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=TrafficStats, summary="Live packet capture traffic statistics")
