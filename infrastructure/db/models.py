@@ -25,7 +25,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, INET
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.hybrid import hybrid_property
 
 from infrastructure.db.database import Base
 
@@ -75,11 +74,6 @@ class DetectionRule(Base):
     version = Column(Integer, nullable=False, default=1)
 
     alerts = relationship("Alert", back_populates="rule")
-
-    @hybrid_property
-    def hits(self):
-        """Count of alerts that triggered this rule."""
-        return len(self.alerts) if self.alerts else 0
 
 
 # ── ML Models ─────────────────────────────────────────────────

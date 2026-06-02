@@ -34,8 +34,10 @@ FROM base AS dependencies
 COPY backend/requirements.txt .
 
 RUN pip install --upgrade pip && \
-    pip install --extra-index-url https://download.pytorch.org/whl/cpu \
-        -r requirements.txt
+    grep -v '^torch' backend/requirements.txt | pip install -r /dev/stdin && \
+    pip install --index-url https://download.pytorch.org/whl/cpu \
+        --extra-index-url https://pypi.org/simple/ \
+        torch==2.4.0
 
 # ── Stage 3: Application ─────────────────────────────────────
 FROM dependencies AS app

@@ -1,7 +1,7 @@
 """
 AI-NIDS — FastAPI Application Entry Point (Updated)
 app/main.py
- 
+
 Startup sequence:
   1. Connect PostgreSQL
   2. Connect Redis
@@ -9,7 +9,7 @@ Startup sequence:
   4. Load ML models (RF, IF, LSTM)
   5. Start Redis Pub/Sub listener for WebSocket fan-out
   6. Register routers: /alerts, /rules, /status, /models, /ws/alerts
- 
+
 Data flow wiring:
     Detection Pipeline Worker
          ↓ (feature_q)
@@ -19,7 +19,7 @@ Data flow wiring:
          ↓ PostgreSQL INSERT
          ↓ Redis CACHE (TTL 300s)
          ↓ Redis PUBLISH → WebSocket fan-out to dashboard
- 
+
 FR Traceability:
     FR7.8  — PostgreSQL persistence
     FR5.4  — Models loaded at startup
@@ -44,7 +44,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("ai-nids")
- 
+
 _startup_time = time.time()
 
 class AppState:
@@ -55,14 +55,14 @@ class AppState:
     ws_clients: list = []
 
 state = AppState()
- 
- 
+
+
 # ── Lifespan ───────────────────────────────────────────────────────────────
- 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AI-NIDS starting up...")
- 
+
     # 1. PostgreSQL
     try:
         db_url = os.getenv("DATABASE_URL", "")
@@ -94,12 +94,13 @@ async def lifespan(app: FastAPI):
             from backend.capture.rule_parser import RuleParser
             parser = RuleParser()
             records = parser.parse_directory(rules_dir)
+            state.rules_loaded = len(records)
             logger.info("Signature rules: %d rules loaded", len(records))
         else:
             logger.warning("Rules directory not found at %s", rules_dir)
     except Exception as e:
         logger.warning("Rule loading failed: %s", e)
- 
+
     # 4. ML models
     models_dir = os.getenv("MODEL_DIR", "/app/models")
     if os.path.isdir(models_dir):
@@ -107,7 +108,7 @@ async def lifespan(app: FastAPI):
         logger.info("ML model files found: %s", model_files or "none — train Week 3")
     else:
         logger.info("MODEL_DIR not found — models train Week 3/6")
- 
+
     # 5. Start Redis → WebSocket listener
     try:
         from backend.api.routers.status import start_redis_listener
@@ -115,19 +116,19 @@ async def lifespan(app: FastAPI):
         logger.info("Redis Pub/Sub → WebSocket listener started")
     except Exception as e:
         logger.warning("WebSocket listener failed to start: %s", e)
- 
+
     # 6. Load ML models and boot detection pipeline
     # ── This is where the full data flow wiring starts ──────────────────
     capture_mode = os.getenv("CAPTURE_MODE", "pcap").lower()
     pcap_path = os.getenv("PCAP_PATH", "")
- 
+
     try:
         from backend.detection.ml.model_loader import load_models
         from backend.detection.ml.signature_engine_runtime import SignatureEngine
- 
+
         model_bundle = load_models()
         sig_engine = SignatureEngine()
- 
+
         from backend.api.routers.status import update_pipeline_stage
         update_pipeline_stage("signature_engine",
                                f"active ({sig_engine._rules.__len__()} rules)" if sig_engine._rules else "no_rules")
@@ -136,7 +137,7 @@ async def lifespan(app: FastAPI):
         update_pipeline_stage("ensemble_correlator",
                                "active" if (sig_engine._rules or model_bundle.is_ml_ready) else "standby")
         update_pipeline_stage("alert_generator", "active")
- 
+
         if capture_mode == "pcap" and pcap_path and os.path.exists(pcap_path):
             # PCAP replay — run as background task alongside the API
             from backend.detection.ml.pipeline_runner import start_pipeline
@@ -145,7 +146,7 @@ async def lifespan(app: FastAPI):
                 name="pcap-pipeline",
             )
             logger.info("PCAP pipeline task started: %s", pcap_path)
- 
+
         elif capture_mode == "live":
             interface = os.getenv("CAPTURE_INTERFACE", "eth0")
             from backend.detection.ml.pipeline_runner import start_live_pipeline
@@ -154,20 +155,20 @@ async def lifespan(app: FastAPI):
                 name="live-pipeline",
             )
             logger.info("Live capture pipeline task started on interface: %s", interface)
- 
+
         else:
             logger.info(
                 "Pipeline standby: CAPTURE_MODE=%s, PCAP_PATH='%s'. "
                 "Set PCAP_PATH or CAPTURE_MODE=live to start detection.",
                 capture_mode, pcap_path,
             )
- 
+
     except Exception as e:
         logger.warning("Pipeline boot failed: %s — API will still serve endpoints", e)
- 
+
     logger.info("AI-NIDS startup complete (%.2f s)", time.time() - _startup_time)
     yield
- 
+
     # Shutdown
     logger.info("AI-NIDS shutting down...")
     try:
@@ -175,10 +176,10 @@ async def lifespan(app: FastAPI):
         await close_redis()
     except Exception:
         pass
- 
- 
+
+
 # ── App ────────────────────────────────────────────────────────────────────
- 
+
 app = FastAPI(
     title="AI-NIDS",
     description=(
@@ -191,39 +192,38 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
- 
-_cors_extra = os.getenv("CORS_ORIGINS", "")
-_cors_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:5173",
-]
-if _cors_extra:
-    _cors_origins.extend([o.strip() for o in _cors_extra.split(",") if o.strip()])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=[
+        "http://localhost:3000",   # React dev server
+        "http://localhost:3001",   # Vite dev server (current)
+        "http://localhost:5173",   # Vite default
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
- 
+
 # ── Routers ────────────────────────────────────────────────────────────────
- 
-from backend.api.routers.alerts import router as alerts_router  # noqa: E402
-from backend.api.routers.rules import router as rules_router    # noqa: E402
-from backend.api.routers.status import router as status_router  # noqa: E402
-from backend.api.routers.capture import router as capture_router  # noqa: E402
- 
+
+from backend.api.routers.alerts import router as alerts_router      # noqa: E402
+from backend.api.routers.rules import router as rules_router        # noqa: E402
+from backend.api.routers.status import router as status_router      # noqa: E402
+from backend.api.routers.capture import router as capture_router    # noqa: E402
+from backend.api.routers.analytics import router as analytics_router  # noqa: E402
+from backend.api.routers.reports import router as reports_router    # noqa: E402
+
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(rules_router, prefix="/api/v1")
 app.include_router(status_router, prefix="/api/v1")
 app.include_router(capture_router, prefix="/api/v1")
- 
- 
+app.include_router(analytics_router, prefix="/api/v1")
+app.include_router(reports_router, prefix="/api/v1")
+
+
 # ── Health (Docker HEALTHCHECK + monitoring — NFR16.3) ─────────────────────
- 
+
 @app.get("/health", tags=["System"])
 async def health():
     return {
@@ -239,11 +239,11 @@ async def health():
             "ws_clients": len(state.ws_clients),
         },
     }
- 
-from backend.api.routers import auth as auth_router
+
+from backend.api.routers import auth as auth_router  # noqa: E402
 
 app.include_router(auth_router.router, prefix="/api/v1")
- 
+
 @app.get("/", include_in_schema=False)
 async def root():
     return {"message": "AI-NIDS API v0.2.0 — visit /docs"}

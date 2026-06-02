@@ -43,6 +43,7 @@ from backend.api.dependencies import get_db, require_role
 from backend.api.reporting.report_builder import ReportBuilder
 from backend.api.reporting.html_renderer import HTMLRenderer
 from backend.api.reporting.pdf_exporter import html_to_pdf
+from backend.api.security import TokenData
 
 logger = logging.getLogger("ai-nids.reporting.router")
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -60,20 +61,31 @@ _renderer = HTMLRenderer()
 
 class ReportRequest(BaseModel):
     report_type: Literal["security", "compliance", "analytics"] = "security"
-    start_date:  str = Field(..., description="ISO date YYYY-MM-DD (UTC)")
-    end_date:    str = Field(..., description="ISO date YYYY-MM-DD (UTC)")
+    # Accept either explicit dates or a convenience range shorthand
+    start_date:  Optional[str] = Field(None, description="ISO date YYYY-MM-DD (UTC)")
+    end_date:    Optional[str] = Field(None, description="ISO date YYYY-MM-DD (UTC)")
+    range:       Optional[Literal["24h", "7d", "30d"]] = Field(None, description="Shorthand range")
+    format:      Optional[Literal["pdf", "csv", "json"]] = Field("json", description="Response format")
     top_n:       int = Field(10, ge=1, le=50, description="Top N IPs / attack types")
 
     def parse_dates(self) -> tuple[datetime, datetime]:
+        end = datetime.now(timezone.utc)
+        if self.range:
+            delta = {"24h": timedelta(hours=24), "7d": timedelta(days=7), "30d": timedelta(days=30)}
+            start = end - delta[self.range]
+            return start, end
+        if not self.start_date or not self.end_date:
+            start = end - timedelta(days=7)
+            return start, end
         start = datetime.fromisoformat(self.start_date).replace(
             hour=0, minute=0, second=0, tzinfo=timezone.utc
         )
-        end = datetime.fromisoformat(self.end_date).replace(
+        end_parsed = datetime.fromisoformat(self.end_date).replace(
             hour=23, minute=59, second=59, tzinfo=timezone.utc
         )
-        if end <= start:
+        if end_parsed <= start:
             raise ValueError("end_date must be after start_date")
-        return start, end
+        return start, end_parsed
 
 
 class ReportMeta(BaseModel):
@@ -92,17 +104,17 @@ class ReportMeta(BaseModel):
 
 @router.post(
     "/generate",
-    response_model=ReportMeta,
     summary="Generate a new report (FR12.1, FR13.1)",
 )
 async def generate_report(
     req: ReportRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(["soc_manager", "system_admin", "network_admin"])),
+    current_user: TokenData = Depends(require_role("soc_manager", "system_admin", "network_admin")),
 ):
     """
-    Generate a security, compliance, or analytics report for the given date range.
-    Returns a report_id that can be used to retrieve the HTML or PDF.
+    Generate a security, compliance, or analytics report.
+    When format=pdf, returns the PDF file directly as a download.
+    Otherwise returns report metadata JSON.
     """
     try:
         start, end = req.parse_dates()
@@ -115,7 +127,7 @@ async def generate_report(
             report_type=req.report_type,
             start=start,
             end=end,
-            generated_by=current_user.get("username", "system"),
+            generated_by=current_user.username,
             top_n=req.top_n,
         )
     except Exception as exc:
@@ -142,8 +154,30 @@ async def generate_report(
     logger.info(
         "Report generated: id=%s type=%s alerts=%d user=%s",
         report_id, req.report_type, data.severity.total,
-        current_user.get("username"),
+        current_user.username,
     )
+
+    # Return the PDF blob directly when format=pdf
+    if req.format == "pdf":
+        try:
+            pdf_bytes = html_to_pdf(html)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=501, detail=str(exc))
+        except Exception as exc:
+            logger.exception("PDF conversion failed: %s", exc)
+            raise HTTPException(status_code=500, detail="PDF conversion failed")
+
+        meta = _report_cache[report_id]["meta"]
+        filename = (
+            f"ai-nids_{meta['report_type']}_"
+            f"{meta['period_start'][:10]}_to_{meta['period_end'][:10]}.pdf"
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     return ReportMeta(**_report_cache[report_id]["meta"])
 
 
@@ -153,7 +187,7 @@ async def generate_report(
     summary="List recently generated reports",
 )
 async def list_reports(
-    current_user: dict = Depends(require_role(["soc_manager", "system_admin", "network_admin"])),
+    current_user: TokenData = Depends(require_role("soc_manager", "system_admin", "network_admin")),
 ):
     """Return metadata for all reports in the in-memory cache (most recent first)."""
     items = [ReportMeta(**v["meta"]) for v in _report_cache.values()]
@@ -167,7 +201,7 @@ async def list_reports(
 )
 async def get_report_meta(
     report_id: str,
-    current_user: dict = Depends(require_role(["soc_manager", "system_admin", "network_admin"])),
+    current_user: TokenData = Depends(require_role("soc_manager", "system_admin", "network_admin")),
 ):
     entry = _report_cache.get(report_id)
     if not entry:
@@ -182,7 +216,7 @@ async def get_report_meta(
 )
 async def get_report_html(
     report_id: str,
-    current_user: dict = Depends(require_role(["soc_manager", "system_admin", "network_admin"])),
+    current_user: TokenData = Depends(require_role("soc_manager", "system_admin", "network_admin")),
 ):
     """Stream the HTML report directly to the browser for in-page viewing."""
     entry = _report_cache.get(report_id)
@@ -197,7 +231,7 @@ async def get_report_html(
 )
 async def download_report_pdf(
     report_id: str,
-    current_user: dict = Depends(require_role(["soc_manager", "system_admin", "network_admin"])),
+    current_user: TokenData = Depends(require_role("soc_manager", "system_admin", "network_admin")),
 ):
     """
     Convert the cached HTML report to PDF and stream it as a file download.
@@ -234,7 +268,7 @@ async def download_report_pdf(
 async def download_report_csv(
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(["soc_manager", "system_admin", "network_admin"])),
+    current_user: TokenData = Depends(require_role("soc_manager", "system_admin", "network_admin")),
 ):
     """
     Export raw alert records for the report period as a downloadable CSV file.
