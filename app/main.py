@@ -35,6 +35,9 @@ import os
 import time
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+load_dotenv()  # load .env before any module reads DATABASE_URL / REDIS_URL
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -57,13 +60,38 @@ class AppState:
 state = AppState()
 
 
+async def _seed_admin_user() -> None:
+    """Insert default admin account if the users table is empty."""
+    try:
+        from sqlalchemy import text
+        from infrastructure.db.database import AsyncSessionLocal
+        from backend.api.security import hash_password
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(text("SELECT COUNT(*) FROM users"))
+            count = result.scalar_one()
+            if count == 0:
+                admin_hash = hash_password("changeme")
+                await session.execute(
+                    text(
+                        "INSERT INTO users (username, email, role, password_hash) "
+                        "VALUES ('admin', 'admin@ai-nids.local', 'system_admin', :h)"
+                    ),
+                    {"h": admin_hash},
+                )
+                await session.commit()
+                logger.info("Seeded default admin user (password: changeme)")
+    except Exception as e:
+        logger.warning("Admin user seeding failed: %s", e)
+
+
 # ── Lifespan ───────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AI-NIDS starting up...")
 
-    # 1. PostgreSQL
+    # 1. PostgreSQL — connect, create tables, seed default admin
     try:
         db_url = os.getenv("DATABASE_URL", "")
         if db_url:
@@ -74,6 +102,14 @@ async def lifespan(app: FastAPI):
             await conn.close()
             state.db_connected = True
             logger.info("PostgreSQL: connected")
+
+            # Ensure all tables exist (idempotent)
+            from infrastructure.db.database import create_tables
+            await create_tables()
+            logger.info("PostgreSQL: tables created/verified")
+
+            # Seed default admin user if missing
+            await _seed_admin_user()
         else:
             logger.warning("DATABASE_URL not set")
     except Exception as e:

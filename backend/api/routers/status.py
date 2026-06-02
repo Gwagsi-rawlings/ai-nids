@@ -191,25 +191,29 @@ async def start_redis_listener() -> None:
 
 
 @router.websocket("/ws/alerts")
-async def websocket_alerts(ws: WebSocket):
+async def websocket_alerts(ws: WebSocket, token: str = ""):
     """
     Real-time alert stream for the React dashboard (FR10.5).
-    Clients receive a JSON payload for every new alert published to the
-    Redis Pub/Sub channel by alert_service.process_detection_event().
-
-    Message format:
-        {
-          "alert_id": "...",
-          "severity": "HIGH",
-          "attack_type": "DoS",
-          "src_ip": "10.0.0.5",
-          "confidence": 0.87
-        }
+    Accepts a JWT via the ?token= query parameter.
     """
+    import os
+    from jose import JWTError
+    from backend.api.security import decode_access_token
+
+    secret_key = os.getenv("SECRET_KEY", "")
+    if secret_key and token:
+        try:
+            decode_access_token(token, secret_key)
+        except JWTError:
+            await ws.close(code=4001)
+            return
+    elif secret_key and not token:
+        await ws.close(code=4001)
+        return
+
     await manager.connect(ws)
     try:
         while True:
-            # Keep connection alive — actual data arrives via Redis listener
             await asyncio.sleep(30)
             await ws.send_text(json.dumps({"type": "ping"}))
     except WebSocketDisconnect:

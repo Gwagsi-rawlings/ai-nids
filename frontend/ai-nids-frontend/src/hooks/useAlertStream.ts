@@ -10,15 +10,32 @@ export function useAlertStream() {
 
   useEffect(() => {
     if (!token) return;
-    const url = `${WS_BASE}/ws/alerts?token=${token}`;
-    const ws  = new WebSocket(url);
 
-    ws.onmessage = (evt) => {
-      const alert = JSON.parse(evt.data);
-      addAlert(alert);
+    const url = `${WS_BASE}/api/v1/ws/alerts?token=${encodeURIComponent(token)}`;
+    let ws: WebSocket;
+    let reconnectTimer: ReturnType<typeof setTimeout>;
+
+    function connect() {
+      ws = new WebSocket(url);
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type !== 'ping') addAlert(msg);
+        } catch { /* ignore malformed frames */ }
+      };
+
+      ws.onclose = () => {
+        reconnectTimer = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+    return () => {
+      clearTimeout(reconnectTimer);
+      ws?.close();
     };
-
-    ws.onclose = () => console.log('WebSocket closed, reconnecting...');
-    return () => ws.close();
-  }, [token]);
+  }, [token, addAlert]);
 }

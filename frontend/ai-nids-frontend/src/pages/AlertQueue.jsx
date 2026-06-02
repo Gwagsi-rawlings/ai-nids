@@ -326,19 +326,7 @@ export default function AlertQueue() {
     staleTime: 10_000,
   });
 
-  const rawAlerts = rawData?.alerts ?? rawData ?? [];
-  const alerts = rawAlerts.map(normaliseAlert);
-
-  /* ── loading state ────────────────────────────────────── */
-  if (isLoading && alerts.length === 0) {
-    return (
-      <div className="page" style={{ padding: 40, color: 'var(--text-muted)' }}>
-        Loading alerts…
-      </div>
-    );
-  }
-
-  /* ── mutations ────────────────────────────────────────── */
+  /* ── mutations — must be before any early return ──────── */
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['alerts'] });
 
   const ackMutation = useMutation({
@@ -355,6 +343,18 @@ export default function AlertQueue() {
     mutationFn: addNote,
     onSuccess: invalidate,
   });
+
+  const rawAlerts = rawData?.alerts ?? rawData ?? [];
+  const alerts = rawAlerts.map(normaliseAlert);
+
+  /* ── loading state ────────────────────────────────────── */
+  if (isLoading && alerts.length === 0) {
+    return (
+      <div className="page" style={{ padding: 40, color: 'var(--text-muted)' }}>
+        Loading alerts…
+      </div>
+    );
+  }
 
   /* ── sort ─────────────────────────────────────────────── */
   const sorted = [...alerts].sort((a, b) => {

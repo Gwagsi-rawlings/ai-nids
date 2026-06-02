@@ -160,8 +160,8 @@ async def _write_audit(
     try:
         await db.execute(
             text(
-                "INSERT INTO audit_log (user_id, action, entity_type, ip_address, timestamp) "
-                "VALUES (:uid, :action, 'auth', :ip, NOW())"
+                "INSERT INTO audit_log (user_id, action, entity_type, ip_address) "
+                "VALUES (:uid, :action, 'auth', :ip)"
             ),
             {"uid": user_id, "action": action, "ip": ip_address},
         )
