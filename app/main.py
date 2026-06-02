@@ -213,6 +213,7 @@ from backend.api.routers.status import router as status_router      # noqa: E402
 from backend.api.routers.capture import router as capture_router    # noqa: E402
 from backend.api.routers.analytics import router as analytics_router  # noqa: E402
 from backend.api.routers.reports import router as reports_router    # noqa: E402
+from backend.api.routers.admin import router as admin_router        # noqa: E402
 
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(rules_router, prefix="/api/v1")
@@ -220,6 +221,7 @@ app.include_router(status_router, prefix="/api/v1")
 app.include_router(capture_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 
 # ── Health (Docker HEALTHCHECK + monitoring — NFR16.3) ─────────────────────

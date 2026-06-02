@@ -18,14 +18,17 @@ FR Traceability:
 April 3–8, 2026 | Sprint 1, Week 4
 """
 
+import csv
+import io
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -390,6 +393,70 @@ async def add_alert_note(
 
     logger.info(f"Note added to alert: alert_id={alert_id}")
     return AlertResponse.model_validate(_alert_to_dict(alert))
+
+
+# ── GET /alerts/export ───────────────────────────────────────
+
+@router.get(
+    "/export",
+    summary="Export alerts as CSV (FR12.8)",
+)
+async def export_alerts_csv(
+    format: str = Query(default="csv"),
+    range: str = Query(default="7d", pattern="^(24h|7d|30d)$"),
+    severity: Optional[str] = Query(None),
+    attack_type: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.now(timezone.utc)
+    delta = {"24h": timedelta(hours=24), "7d": timedelta(days=7), "30d": timedelta(days=30)}
+    since = now - delta.get(range, timedelta(days=7))
+
+    conditions = [Alert.detected_at >= since]
+    if severity:
+        conditions.append(Alert.severity == severity.upper())
+    if attack_type:
+        conditions.append(Alert.attack_type == attack_type)
+
+    result = await db.execute(
+        select(Alert)
+        .where(and_(*conditions))
+        .order_by(Alert.detected_at.desc())
+        .limit(10000)
+    )
+    alerts = result.scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "alert_id", "detected_at", "severity", "attack_type",
+        "confidence", "detected_by", "src_ip", "dst_ip",
+        "src_port", "dst_port", "protocol", "status", "description",
+    ])
+    for a in alerts:
+        writer.writerow([
+            a.alert_id,
+            a.detected_at.isoformat() if a.detected_at else "",
+            a.severity,
+            a.attack_type,
+            round(float(a.confidence), 4) if a.confidence is not None else "",
+            a.detected_by,
+            str(a.src_ip) if a.src_ip else "",
+            str(a.dst_ip) if a.dst_ip else "",
+            a.src_port or "",
+            a.dst_port or "",
+            a.protocol or "",
+            a.status,
+            (a.description or "").replace("\n", " "),
+        ])
+
+    output.seek(0)
+    filename = f"ai-nids-alerts-{range}-{int(now.timestamp())}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── PATCH /alerts/{alert_id}/false-positive ──────────────────

@@ -226,13 +226,24 @@ export default function Admin() {
     } catch { /* silent */ }
   }, []);
 
+  const fetchConfig = useCallback(async () => {
+    try {
+      const data = await apiFetch("/config");
+      if (data.retention_days != null) setRetentionDays(data.retention_days);
+      if (data.alert_threshold != null) setAlertThreshold(data.alert_threshold);
+      if (data.siem_enabled != null) setSiemEnabled(data.siem_enabled);
+      if (data.siem_url != null) setSiemUrl(data.siem_url);
+    } catch { /* silent — non-admin users won't have access */ }
+  }, []);
+
   useEffect(() => {
     fetchHealth();
     fetchUsers();
     fetchAudit();
+    fetchConfig();
     const id = setInterval(fetchHealth, 10000);
     return () => clearInterval(id);
-  }, [fetchHealth, fetchUsers, fetchAudit]);
+  }, [fetchHealth, fetchUsers, fetchAudit, fetchConfig]);
 
   const handleDeactivateUser = async (userId: string) => {
     try {

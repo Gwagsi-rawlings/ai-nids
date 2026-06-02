@@ -45,21 +45,14 @@ const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const SEV_COLORS = { CRITICAL: "#ef4444", HIGH: "#f97316", MEDIUM: "#eab308", LOW: "#64748b" };
 const ATTACK_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
 
-// Fallback mock summary (shown when API is not yet wired)
-const MOCK_SUMMARY: Summary = {
-  total_alerts: 4821,
-  by_severity: { CRITICAL: 142, HIGH: 891, MEDIUM: 2340, LOW: 1448 },
-  by_attack_type: { DoS: 1823, PortScan: 1240, BruteForce: 732, DDoS: 589, WebAttack: 291, Botnet: 146 },
-  top_src_ips: [
-    { ip: "192.168.10.5",   count: 823, country: "CM", last_seen: new Date().toISOString() },
-    { ip: "172.16.0.102",   count: 641, country: "NG", last_seen: new Date().toISOString() },
-    { ip: "10.0.0.45",      count: 518, country: "—", last_seen: new Date().toISOString() },
-    { ip: "203.0.113.77",   count: 391, country: "CN", last_seen: new Date().toISOString() },
-    { ip: "198.51.100.23",  count: 278, country: "RU", last_seen: new Date().toISOString() },
-  ],
-  false_positive_rate: 0.031,
-  avg_confidence: 0.847,
-  alerts_per_hour: [12,8,6,4,3,5,9,22,38,51,64,72,68,59,73,81,77,65,54,48,41,37,29,18],
+const EMPTY_SUMMARY: Summary = {
+  total_alerts: 0,
+  by_severity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
+  by_attack_type: {},
+  top_src_ips: [],
+  false_positive_rate: 0,
+  avg_confidence: 0,
+  alerts_per_hour: Array(24).fill(0),
 };
 
 // ── Inline sparkline chart (SVG) ──────────────────────────────────────────
@@ -172,8 +165,8 @@ function KpiCard({ label, value, sub, pass }: { label: string; value: string; su
 
 export default function Analytics() {
   const [range, setRange] = useState<TimeRange>("7d");
-  const [summary, setSummary] = useState<Summary>(MOCK_SUMMARY);
-  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState<Summary>(EMPTY_SUMMARY);
+  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -182,12 +175,12 @@ export default function Analytics() {
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await apiFetch(`/analytics/summary?range=${range}`);
       setSummary(data);
-    } catch {
-      // Fall back silently to mock data — API may not be fully wired yet
-      setSummary(MOCK_SUMMARY);
+    } catch (e: any) {
+      setError(e.message || "Failed to load analytics data");
     } finally {
       setLoading(false);
     }
@@ -323,11 +316,11 @@ export default function Analytics() {
       )}
 
       {/* KPI row */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
-        <KpiCard label="Total Alerts" value={fmt(total)} sub={`Last ${range}`} />
-        <KpiCard label="FPR (Live)" value={pct(summary.false_positive_rate)} sub="target ≤ 5%" pass={summary.false_positive_rate <= 0.05} />
-        <KpiCard label="Avg Confidence" value={pct(summary.avg_confidence)} sub="ensemble score" />
-        <KpiCard label="Alerts / Hour" value={fmt(Math.round(summary.alerts_per_hour.reduce((a, b) => a + b, 0) / (summary.alerts_per_hour.length || 1)))} sub="rolling average" />
+      <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap", opacity: loading ? 0.4 : 1, transition: "opacity 0.2s" }}>
+        <KpiCard label="Total Alerts" value={loading ? "—" : fmt(total)} sub={`Last ${range}`} />
+        <KpiCard label="FPR (Live)" value={loading ? "—" : pct(summary.false_positive_rate)} sub="target ≤ 5%" pass={loading ? undefined : summary.false_positive_rate <= 0.05} />
+        <KpiCard label="Avg Confidence" value={loading ? "—" : pct(summary.avg_confidence)} sub="ensemble score" />
+        <KpiCard label="Alerts / Hour" value={loading ? "—" : fmt(Math.round(summary.alerts_per_hour.reduce((a, b) => a + b, 0) / (summary.alerts_per_hour.length || 1)))} sub="rolling average" />
       </div>
 
       {/* Trend chart */}
