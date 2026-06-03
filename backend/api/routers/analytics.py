@@ -15,7 +15,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select, case
+from sqlalchemy import cast, func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.db.database import get_db
@@ -111,7 +111,7 @@ async def analytics_summary(
     fp_result = await db.execute(
         select(func.count(Alert.id)).where(
             Alert.detected_at >= since,
-            Alert.status == "false_positive",
+            Alert.status == cast("false_positive", Alert.status.type),
         )
     )
     fp_count = fp_result.scalar_one() or 0
