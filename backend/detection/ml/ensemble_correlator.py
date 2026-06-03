@@ -408,69 +408,6 @@ class EnsembleCorrelator:
             raw_score  = 0.5,
         )
 
-# ── Aliases expected by test_data_flow.py ────────────────────────────────────
-
-from dataclasses import dataclass as _dc
-
-@_dc
-class EngineOutputs:
-    sig_confidence:  float = 0.0
-    rf_confidence:   float = 0.0
-    lstm_confidence: float = 0.0
-    if_confidence:   float = 0.0
-    sig_matched:     bool  = False
-    attack_type:     str   = "BENIGN"
-
-
-def correlate(outputs: "EngineOutputs", threshold: float = 0.50):
-    """Thin wrapper used by tests — returns EnsembleVerdict or None."""
-    score = (
-        0.40 * outputs.sig_confidence +
-        0.35 * outputs.rf_confidence  +
-        0.15 * outputs.lstm_confidence +
-        0.10 * outputs.if_confidence
-    )
-    if score < threshold:
-        return None
-    return score
-
-
-def run_ensemble_worker(sig, rf, lstm, if_result, src_ip="", dst_ip=""):
-    """Signature expected by TestPipelineDataFlow.test_ensemble_worker_signature_matches."""
-    pass
-
-
-# ── Aliases expected by test_data_flow.py ────────────────────────────────────
-
-from dataclasses import dataclass as _dc
-
-@_dc
-class EngineOutputs:
-    sig_confidence:  float = 0.0
-    rf_confidence:   float = 0.0
-    lstm_confidence: float = 0.0
-    if_confidence:   float = 0.0
-    sig_matched:     bool  = False
-    attack_type:     str   = "BENIGN"
-
-
-def correlate(outputs: "EngineOutputs", threshold: float = 0.50):
-    """Thin wrapper used by tests — returns EnsembleVerdict or None."""
-    score = (
-        0.40 * outputs.sig_confidence +
-        0.35 * outputs.rf_confidence  +
-        0.15 * outputs.lstm_confidence +
-        0.10 * outputs.if_confidence
-    )
-    if score < threshold:
-        return None
-    return score
-
-
-def run_ensemble_worker(sig, rf, lstm, if_result, src_ip="", dst_ip=""):
-    """Signature expected by TestPipelineDataFlow.test_ensemble_worker_signature_matches."""
-    pass
-
 # ── Aliases required by test_data_flow.py ────────────────────────────────────
 from dataclasses import dataclass as _dataclass
 
@@ -519,7 +456,155 @@ def correlate(outputs: "EngineOutputs", threshold: float = 0.50):
     )
 
 
-def run_ensemble_worker(feature_q, alert_generator_fn, signature_engine,
-                        rf_model, if_model, lstm_model, scaler, label_encoder,
-                        src_ip="", dst_ip=""):
-    pass
+async def run_ensemble_worker(
+    feature_q: "asyncio.Queue",
+    alert_generator_fn,
+    signature_engine,
+    rf_model,
+    if_model,
+    lstm_model,
+    scaler,
+    label_encoder,
+):
+    """
+    Async worker that consumes (flow_id, feature_vec, meta) from feature_q,
+    runs all four detection engines, correlates results, and calls
+    alert_generator_fn(verdict, meta) for any alerts produced.
+
+    Runs indefinitely until cancelled.
+    """
+    import asyncio as _asyncio
+    import math as _math
+    import numpy as _np
+
+    ATTACK_LABELS = [
+        "BENIGN", "Botnet", "BruteForce", "DDoS",
+        "DoS", "Infiltration", "PortScan", "WebAttack",
+    ]
+
+    def _sigmoid(x: float) -> float:
+        try:
+            return 1.0 / (1.0 + _math.exp(-x))
+        except OverflowError:
+            return 0.0 if x < 0 else 1.0
+
+    def _normalise(vec):
+        if scaler is None:
+            return vec.astype(_np.float64)
+        return scaler.transform(vec.reshape(1, -1)).flatten().astype(_np.float64)
+
+    def _class_name(idx: int) -> str:
+        if label_encoder is not None:
+            try:
+                return str(label_encoder.inverse_transform([idx])[0])
+            except Exception:
+                pass
+        return ATTACK_LABELS[idx] if 0 <= idx < len(ATTACK_LABELS) else f"UNKNOWN_{idx}"
+
+    def _run_rf(flow_id: str, scaled_vec) -> "RFResult":
+        if rf_model is None:
+            return RFResult(flow_id=flow_id, predicted_class="BENIGN",
+                            confidence=0.0, is_attack=False, probabilities={})
+        proba = rf_model.predict_proba(scaled_vec.reshape(1, -1))[0]
+        idx = int(_np.argmax(proba))
+        label = _class_name(idx)
+        return RFResult(
+            flow_id=flow_id,
+            predicted_class=label,
+            confidence=float(proba[idx]),
+            is_attack=(label != "BENIGN"),
+            probabilities={_class_name(i): float(p) for i, p in enumerate(proba)},
+        )
+
+    def _run_if(flow_id: str, scaled_vec) -> "IFResult":
+        if if_model is None:
+            return IFResult(flow_id=flow_id, is_anomaly=False, confidence=0.0, raw_score=0.0)
+        raw = float(if_model.decision_function(scaled_vec.reshape(1, -1))[0])
+        conf = _sigmoid(-raw)
+        return IFResult(flow_id=flow_id, is_anomaly=(raw < 0.1135),
+                        confidence=conf, raw_score=raw)
+
+    def _run_lstm(flow_id: str, lstm_sequence) -> "LSTMResult":
+        if lstm_model is None or lstm_sequence is None:
+            return EnsembleCorrelator.make_null_lstm(flow_id)
+        try:
+            import torch as _torch
+            tensor = _torch.tensor(lstm_sequence, dtype=_torch.float32)
+            with _torch.no_grad():
+                logits = lstm_model(tensor)
+                probs = _torch.softmax(logits, dim=-1)[0].cpu().numpy()
+            idx = int(_np.argmax(probs))
+            label = _class_name(idx)
+            return LSTMResult(
+                flow_id=flow_id,
+                predicted_class=label,
+                confidence=float(probs[idx]),
+                is_attack=(label != "BENIGN"),
+                window_complete=True,
+            )
+        except Exception as exc:
+            logger.debug("LSTM inference failed flow=%s: %s", flow_id, exc)
+            return EnsembleCorrelator.make_null_lstm(flow_id)
+
+    def _run_sig(flow_id: str, meta: dict) -> "SigResult":
+        if signature_engine is None:
+            return EnsembleCorrelator.make_null_sig(flow_id)
+        try:
+            result = signature_engine.match_flow(meta)
+            if result is None:
+                return EnsembleCorrelator.make_null_sig(flow_id)
+            return SigResult(
+                flow_id=flow_id,
+                matched=True,
+                rule_id=getattr(result, "rule_id", ""),
+                rule_name=getattr(result, "description", ""),
+                attack_type=getattr(result, "attack_type", "UNKNOWN"),
+                confidence=getattr(result, "confidence", 1.0),
+                severity=getattr(result, "severity", "LOW"),
+            )
+        except Exception as exc:
+            logger.debug("Signature engine error flow=%s: %s", flow_id, exc)
+            return EnsembleCorrelator.make_null_sig(flow_id)
+
+    correlator = EnsembleCorrelator()
+    loop = _asyncio.get_running_loop()
+
+    logger.info("run_ensemble_worker started")
+
+    while True:
+        try:
+            item = await feature_q.get()
+        except _asyncio.CancelledError:
+            break
+
+        try:
+            flow_id, vec, meta = item
+            flow_id = flow_id or ""
+            src_ip = meta.get("src_ip", "") if meta else ""
+            dst_ip = meta.get("dst_ip", "") if meta else ""
+            lstm_sequence = meta.get("lstm_sequence") if meta else None
+
+            scaled_vec = await loop.run_in_executor(None, _normalise, vec)
+
+            sig_res, rf_res, if_res, lstm_res = await _asyncio.gather(
+                loop.run_in_executor(None, _run_sig, flow_id, meta or {}),
+                loop.run_in_executor(None, _run_rf, flow_id, scaled_vec),
+                loop.run_in_executor(None, _run_if, flow_id, scaled_vec),
+                loop.run_in_executor(None, _run_lstm, flow_id, lstm_sequence),
+            )
+
+            verdict = correlator.correlate(
+                sig_res, rf_res, lstm_res, if_res,
+                src_ip=src_ip, dst_ip=dst_ip,
+            )
+
+            if verdict.alert:
+                try:
+                    await alert_generator_fn(verdict, meta or {})
+                except Exception as exc:
+                    logger.error("alert_generator_fn failed flow=%s: %s", flow_id, exc)
+
+        except Exception as exc:
+            logger.error("run_ensemble_worker item error: %s", exc)
+        finally:
+            feature_q.task_done()
