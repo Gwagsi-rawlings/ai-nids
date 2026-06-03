@@ -15,7 +15,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import cast, func, select, case
+from sqlalchemy import cast, func, select, case, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.db.database import get_db
@@ -109,12 +109,14 @@ async def analytics_summary(
 
     # False positive rate
     fp_result = await db.execute(
-        select(func.count(Alert.id)).where(
-            Alert.detected_at >= since,
-            Alert.status == cast("false_positive", Alert.status.type),
-        )
+        text("""
+            SELECT COUNT(*) FROM alerts
+            WHERE detected_at >= :since
+            AND status = 'false_positive'::alert_status
+        """),
+        {"since": since},
     )
-    fp_count = fp_result.scalar_one() or 0
+    fp_count = fp_result.scalar() or 0
     false_positive_rate = (fp_count / total) if total > 0 else 0.0
 
     # Avg confidence
