@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, Integer,
+    Boolean, Column, DateTime, Enum as SAEnum, Float, Integer,
     String, Text, ForeignKey, UniqueConstraint, Index,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, INET
@@ -44,8 +44,7 @@ class User(Base):
     id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     username = Column(String(64), unique=True, nullable=False, index=True)
     email = Column(String(256), unique=True, nullable=False)
-    # Enum: network_admin | soc_manager | system_admin | read_only_analyst  (G-09 fix)
-    role = Column(String(32), nullable=False, default="read_only_analyst")
+    role = Column(SAEnum('system_admin', 'soc_manager', 'network_admin', 'read_only_analyst', name='user_role', create_type=False), nullable=False, default="read_only_analyst")
     password_hash = Column(String(256), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_now)
@@ -66,8 +65,7 @@ class DetectionRule(Base):
     rule_name = Column(String(255), nullable=False)
     rule_content = Column(Text, nullable=False)                              # Full Snort rule string
     attack_category = Column(String(64), nullable=False, index=True)
-    # Enum: CRITICAL | HIGH | MEDIUM | LOW
-    severity = Column(String(16), nullable=False, default="MEDIUM")
+    severity = Column(SAEnum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='severity_t', create_type=False), nullable=False, default="MEDIUM")
     is_enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_now)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)

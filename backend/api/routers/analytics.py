@@ -112,7 +112,7 @@ async def analytics_summary(
         text("""
             SELECT COUNT(*) FROM alerts
             WHERE detected_at >= :since
-            AND status = 'false_positive'::alert_status
+            AND status = 'FALSE_POSITIVE'::alert_status
         """),
         {"since": since},
     )
