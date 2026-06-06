@@ -285,10 +285,10 @@ class ReportBuilder:
     async def _engine_stats(self, params: dict) -> DetectionEngineStats:
         sql = text("""
             SELECT
-                COUNT(*) FILTER (WHERE detection_method = 'SIGNATURE')  AS sig,
-                COUNT(*) FILTER (WHERE detection_method = 'ML')         AS ml,
-                COUNT(*) FILTER (WHERE detection_method = 'HYBRID')     AS both,
-                COUNT(*) FILTER (WHERE status = 'FALSE_POSITIVE')       AS fp
+                COUNT(*) FILTER (WHERE detected_by LIKE '%signature%')                                        AS sig,
+                COUNT(*) FILTER (WHERE detected_by LIKE '%random_forest%' OR detected_by LIKE '%lstm%')       AS ml,
+                COUNT(*) FILTER (WHERE detected_by LIKE '%ensemble%')                                         AS both,
+                COUNT(*) FILTER (WHERE status = 'FALSE_POSITIVE')                                             AS fp
             FROM alerts
             WHERE detected_at BETWEEN :start AND :end
         """)
