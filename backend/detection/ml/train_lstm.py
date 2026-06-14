@@ -29,7 +29,6 @@ FR Traceability:
 March 2026 | Sprint 2 Week 6 | Developer: GWAGSI Rawlings Nshom
 """
 
-import gc
 import json
 import os
 import sys
@@ -487,7 +486,7 @@ def main():
     print(f"  P95 latency  : {lat_p95:.2f} ms  "
           f"{'✓ PASS' if lat_p95 <= 50 else '✗ FAIL — exceeds 50 ms target'}")
     print(f"  P99 latency  : {lat_p99:.2f} ms")
-    print(f"  Target       : ≤50 ms (NFR G-03)")
+    print("  Target       : ≤50 ms (NFR G-03)")
 
     # ── LSTM vs RF vs IF summary table ────────────────────────
     print("\n" + "=" * 60)

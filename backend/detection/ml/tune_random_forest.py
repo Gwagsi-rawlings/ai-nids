@@ -42,7 +42,6 @@ March 28, 2026 | Sprint 1, Week 3 | Developer: GWAGSI Rawlings Nshom
 """
 
 import json
-import os
 import time
 from pathlib import Path
 
@@ -222,17 +221,17 @@ def evaluate(clf, X_test, y_test, thresholds, le):
         pass_str = ('✓' if passed else '✗') if passed is not None else "  —"
         print(f"  {name:<35} {base_str:>10}  {val:>10.4f}  {tgt_str:>10}  {pass_str:>6}")
 
-    print(f"\n  Per-class classification report (tuned):")
+    print("\n  Per-class classification report (tuned):")
     print(classification_report(y_test, y_pred, target_names=class_names, zero_division=0))
 
-    print(f"  Per-class FPR (tuned):")
+    print("  Per-class FPR (tuned):")
     for cls, fpr_i in zip(class_names, fp_rates):
         delta = fpr_i - [0.0031,0.0183,0.0221,0.0001,0.0140,0.0000,0.0004,0.0048][
             class_names.index(cls)]
         arrow = "↓" if delta < 0 else ("↑" if delta > 0 else "—")
         print(f"    {cls:<20} FPR = {fpr_i:.4f}  {arrow}")
 
-    print(f"\n  Confusion matrix (tuned):")
+    print("\n  Confusion matrix (tuned):")
     print(cm)
 
     metrics = {
@@ -288,7 +287,7 @@ def main():
 
     passes = sum([metrics["nfr20_1_pass"], metrics["nfr20_2_pass"],
                   metrics["nfr20_3_pass"], metrics["nfr20_4_pass"]])
-    print(f"\n── Summary ────────────────────────────────────────────")
+    print("\n── Summary ────────────────────────────────────────────")
     print(f"  NFR20 targets passed: {passes}/4")
     print(f"  Macro F1 : {metrics['macro_f1']:.4f}  (was 0.6639)")
     print(f"  FPR      : {metrics['fpr_overall']:.4f}  (was 0.0723)")

@@ -15,14 +15,11 @@ FR Traceability:
 April 24, 2026 | Sprint Week 7 | Developer: GWAGSI Rawlings Nshom
 """
 
-import time
 import pytest
 from backend.detection.alert_correlator import (
     AlertCorrelator,
     DetectionEvent,
     CorrelatedAlert,
-    DEDUP_WINDOW_SECONDS,
-    CORRELATION_WINDOW_SECONDS,
 )
 
 

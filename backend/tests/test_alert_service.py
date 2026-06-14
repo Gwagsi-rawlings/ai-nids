@@ -28,12 +28,11 @@ NFR Traceability:
 May 2026 | Sprint Week 8 | Developer: GWAGSI Rawlings Nshom
 """
 
-import asyncio
 import uuid
 import time
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-from dataclasses import dataclass, field
+from unittest.mock import AsyncMock
+from dataclasses import dataclass
 from typing import Optional, List
 
 import pytest

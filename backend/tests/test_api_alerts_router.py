@@ -30,8 +30,8 @@ May 2026 | Sprint Week 8 | Developer: GWAGSI Rawlings Nshom
 import json
 import time
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Dict, Optional
 
 import pytest
 from fastapi import FastAPI, Depends, HTTPException, status, Query

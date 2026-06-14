@@ -24,10 +24,8 @@ April 1, 2026 | Sprint 1, Week 3 | Developer: GWAGSI Rawlings Nshom
 from __future__ import annotations
 
 import asyncio
-import os
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -47,7 +45,7 @@ from backend.detection.ml.inference_engine import (
     init_engine,
     get_engine,
 )
-from backend.capture.pipeline import run_pcap_pipeline, PipelineStats
+from backend.capture.pipeline import run_pcap_pipeline
 
 # ---------------------------------------------------------------------------
 # Helpers

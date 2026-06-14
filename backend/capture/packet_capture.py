@@ -22,13 +22,12 @@ Output dict schema:
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from scapy.all import AsyncSniffer, rdpcap
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.inet6 import IPv6
-from scapy.layers.l2 import Ether
 from scapy.packet import Packet
 
 logger = logging.getLogger(__name__)

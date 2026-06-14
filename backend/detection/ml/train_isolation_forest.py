@@ -21,7 +21,6 @@ March 29, 2026 | Sprint 1 | Developer: GWAGSI Rawlings Nshom
 
 import gc
 import json
-import os
 import time
 from pathlib import Path
 
@@ -244,12 +243,12 @@ def main() -> dict:
     print(f"  {'F1-Score (binary)':<30} {f1:>10.4f}  {'>=0.9000':>12}  {pf(f1, 0.90, '>='):>6}")
     print(f"  {'False Positive Rate':<30} {fpr:>10.4f}  {'<=0.0500':>12}  {pf(fpr, 0.05, '<='):>6}")
     print(f"  {'Inference Latency (ms)':<30} {latency_ms:>10.4f}  {'<=3.0000':>12}  {pf(latency_ms, 3.0, '<='):>6}")
-    print(f"\n  Confusion Matrix (binary: 0=BENIGN, 1=ATTACK):")
+    print("\n  Confusion Matrix (binary: 0=BENIGN, 1=ATTACK):")
     print(f"    TN (correct benign)  = {tn:>10,}")
     print(f"    FP (false alert)     = {fp:>10,}")
     print(f"    FN (missed attack)   = {fn:>10,}")
     print(f"    TP (caught attack)   = {tp:>10,}")
-    print(f"\n  Per-class Detection Rate (TPR >= 0.85 target):")
+    print("\n  Per-class Detection Rate (TPR >= 0.85 target):")
     for cls, rate in per_class_tpr.items():
         if rate is None:
             print(f"    {cls:<20} : N/A (no test samples)")

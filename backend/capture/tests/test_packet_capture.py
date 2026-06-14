@@ -18,8 +18,6 @@ March 24, 2026 | Sprint 1 | Developer: GWAGSI Rawlings Nshom
 """
 
 import asyncio
-import tempfile
-import os
 
 import pytest
 from scapy.layers.inet import IP, TCP, UDP, ICMP
@@ -337,7 +335,6 @@ class TestPacketCaptureLifecycle:
 
     def test_double_start_raises(self):
         """Starting capture twice must raise RuntimeError."""
-        import unittest.mock as mock
         capture = PacketCapture()
         capture._running = True  # simulate already-running state
         queue = asyncio.Queue()

@@ -211,7 +211,7 @@ def main():
     print(f"  Train sequences : {len(y_lstm_train):>10,}  shape {X_lstm_train.shape}")
     print(f"  Test sequences  : {len(y_lstm_test):>10,}  shape {X_lstm_test.shape}")
     print(f"  Elapsed         : {elapsed:.1f} s")
-    print(f"\nOutputs saved:")
+    print("\nOutputs saved:")
     print(f"  {OUT_TRAIN_X}")
     print(f"  {OUT_TRAIN_Y}")
     print(f"  {OUT_TEST_X}")

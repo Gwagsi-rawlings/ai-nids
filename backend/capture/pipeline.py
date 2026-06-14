@@ -233,8 +233,7 @@ class DetectionPipeline:
 
     def _stage1_read_pcap(self, pcap_path: str):
         """Synchronous PCAP reader — runs in thread executor."""
-        from backend.capture.packet_capture import PacketCapture, PacketParser
-        from backend.capture.feature_extractor import PacketRecord
+        from backend.capture.packet_capture import PacketCapture
 
         cap = PacketCapture()
         queue = asyncio.Queue(maxsize=Q_RAW_PACKETS)
@@ -246,7 +245,6 @@ class DetectionPipeline:
         # Drain the synchronous queue into the async raw_q
         # (PacketCapture.read_pcap uses asyncio.Queue internally)
         # We need to convert dicts to PacketRecord objects here.
-        import asyncio as _aio
 
         loop = self._loop  # captured in run_pcap() before executor dispatch
 
@@ -481,7 +479,7 @@ class DetectionPipeline:
         dst_port,
     ):
         """Synchronous Signature Engine call — runs in executor."""
-        from backend.detection.ml.ensemble_correlator import SigResult, EnsembleCorrelator
+        from backend.detection.ml.ensemble_correlator import EnsembleCorrelator
 
         if self._sig is None:
             return EnsembleCorrelator.make_null_sig(flow_id)

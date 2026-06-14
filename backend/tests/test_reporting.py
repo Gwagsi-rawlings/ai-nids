@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 # ── Import the data containers and renderer ──────────────────────────────────
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from backend.api.reporting.report_builder import (
@@ -370,7 +371,6 @@ class TestReportDataEdgeCases:
 class TestPDFExporter:
     def test_raises_runtime_error_when_weasyprint_missing(self):
         """If WeasyPrint is not installed, html_to_pdf must raise RuntimeError."""
-        import importlib
         with patch.dict("sys.modules", {"weasyprint": None}):
             from backend.api.reporting.pdf_exporter import html_to_pdf
             with pytest.raises(RuntimeError, match="WeasyPrint"):

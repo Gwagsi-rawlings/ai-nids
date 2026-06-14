@@ -32,7 +32,6 @@ March 28, 2026 | Sprint 1, Week 3 | Developer: GWAGSI Rawlings Nshom
 """
 
 import json
-import os
 import time
 from pathlib import Path
 
@@ -178,15 +177,15 @@ def evaluate(clf, X_test, y_test, le):
     print(f"  {'Inference latency (ms/sample)':<35} {inf_time_ms:>10.4f}  {'≤5.0000':>10}  "
           f"{'✓' if inf_time_ms <= 5.0 else '✗':>6}")
 
-    print(f"\n  Per-class classification report:")
+    print("\n  Per-class classification report:")
     print(classification_report(y_test, y_pred, target_names=class_names, zero_division=0))
 
-    print(f"  Per-class FPR:")
+    print("  Per-class FPR:")
     for cls, fpr_i in zip(class_names, fp_rates):
         print(f"    {cls:<20} FPR = {fpr_i:.4f}")
 
     # ── Confusion matrix ───────────────────────────────────────
-    print(f"\n  Confusion matrix (rows=actual, cols=predicted):")
+    print("\n  Confusion matrix (rows=actual, cols=predicted):")
     print(f"  Classes: {class_names}")
     print(cm)
 

@@ -15,7 +15,6 @@ FR Traceability:
 May 2026 | Week 8-9 | Developer: GWAGSI Rawlings Nshom
 """
 
-import asyncio
 import os
 import pytest
 import httpx

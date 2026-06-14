@@ -14,7 +14,6 @@ Run after both models are trained:
 March 30, 2026 | Sprint 1 | Developer: GWAGSI Rawlings Nshom
 """
 
-import gc
 import json
 from pathlib import Path
 
@@ -23,8 +22,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")          # headless — no display needed
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from sklearn.metrics import roc_curve, auc, RocCurveDisplay
+from sklearn.metrics import roc_curve, auc
 from sklearn.preprocessing import label_binarize
 
 # ---------------------------------------------------------------------------
@@ -372,7 +370,7 @@ def main():
     print("=" * 65)
     print(f"\n  RF macro-avg AUC : {ovl_data['rf_macro_auc']}")
     print(f"  IF binary AUC    : {ovl_data['if_binary_auc']}")
-    print(f"\n  Figures generated:")
+    print("\n  Figures generated:")
     for k, v in summary["figures"].items():
         print(f"    {k}: {Path(v).name}")
 

@@ -20,7 +20,6 @@ April 3–8, 2026 | Sprint 1, Week 4
 
 import csv
 import io
-import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -29,11 +28,11 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.db.database import get_db
-from infrastructure.db.models import Alert, User
+from infrastructure.db.models import Alert
 from infrastructure.db import redis_client
 from backend.api.schemas import (
     AlertCreate, AlertResponse, AlertListResponse,

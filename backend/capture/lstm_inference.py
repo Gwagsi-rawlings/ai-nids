@@ -28,7 +28,6 @@ import logging
 import os
 import time
 from collections import deque
-from typing import Optional
 
 import numpy as np
 
@@ -125,7 +124,6 @@ class LSTMInferenceEngine:
         2-layer LSTM (64 units), dropout 0.3, Linear(8) output.
         Must match train_lstm.py exactly.
         """
-        import torch
         import torch.nn as nn
 
         class LSTMClassifier(nn.Module):

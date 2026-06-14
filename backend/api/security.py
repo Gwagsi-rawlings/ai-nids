@@ -14,7 +14,7 @@ FR Traceability: FR14.1 (username/password auth), FR14.3 (password complexity),
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 

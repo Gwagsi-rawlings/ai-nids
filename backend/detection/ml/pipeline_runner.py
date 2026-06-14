@@ -43,7 +43,6 @@ import logging
 import os
 import sys
 import time
-from typing import Optional
 
 logger = logging.getLogger("ai-nids.pipeline_runner")
 
@@ -99,7 +98,6 @@ async def _aggregation_worker(
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-    from collections import deque
     from backend.capture.feature_extractor import FlowAggregator, FeatureExtractor, PacketRecord
 
     aggregator = FlowAggregator()

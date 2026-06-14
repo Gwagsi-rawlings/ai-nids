@@ -34,14 +34,12 @@ April 6, 2026 | Sprint 1, Week 4
 
 from __future__ import annotations
 
-import asyncio
 import json
 import sys
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 # Ensure project root importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -498,7 +496,7 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "total" in data
-        assert "items" in data
+        assert "alerts" in data
         assert "page" in data
 
     @pytest.mark.asyncio
@@ -524,7 +522,7 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "total" in data
-        assert "items" in data
+        assert "rules" in data
 
     @pytest.mark.asyncio
     async def test_models_endpoint_returns_list(self, client):

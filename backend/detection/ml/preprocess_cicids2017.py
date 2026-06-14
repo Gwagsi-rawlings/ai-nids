@@ -123,7 +123,7 @@ le = LabelEncoder()
 y = le.fit_transform(y_raw)
 print(f"\n  Classes: {list(le.classes_)}")
 joblib.dump(le, os.path.join(OUTPUT_DIR, 'label_encoder.pkl'))
-print(f"  Saved: label_encoder.pkl")
+print("  Saved: label_encoder.pkl")
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.20, random_state=42, stratify=y
@@ -144,7 +144,7 @@ X_test_scaled  = scaler.transform(X_test)
 del X_train, X_test; gc.collect()
 
 joblib.dump(scaler, os.path.join(OUTPUT_DIR, 'scaler.pkl'))
-print(f"  Scaler saved.")
+print("  Scaler saved.")
 print(f"  Train range: [{X_train_scaled.min():.3f}, {X_train_scaled.max():.3f}]")
 print(f"  Test  range: [{X_test_scaled.min():.3f},  {X_test_scaled.max():.3f}]")
 
@@ -171,8 +171,8 @@ project_scaler = os.path.expanduser("~/ai-nids/ml/scaler.pkl")
 shutil.copy(os.path.join(OUTPUT_DIR, 'scaler.pkl'), project_scaler)
 shutil.copy(os.path.join(OUTPUT_DIR, 'label_encoder.pkl'),
             os.path.expanduser("~/ai-nids/ml/label_encoder.pkl"))
-print(f"\n  Copied scaler.pkl → ~/ai-nids/ml/scaler.pkl")
-print(f"  Copied label_encoder.pkl → ~/ai-nids/ml/label_encoder.pkl")
+print("\n  Copied scaler.pkl → ~/ai-nids/ml/scaler.pkl")
+print("  Copied label_encoder.pkl → ~/ai-nids/ml/label_encoder.pkl")
 
 print(f"\n  All outputs saved to: {OUTPUT_DIR}")
 print("\n" + "=" * 60)

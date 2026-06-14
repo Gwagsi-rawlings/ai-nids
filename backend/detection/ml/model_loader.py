@@ -29,7 +29,7 @@ April 6, 2026 | Sprint 1, Week 4
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Optional
 
 logger = logging.getLogger("ai-nids.model_loader")

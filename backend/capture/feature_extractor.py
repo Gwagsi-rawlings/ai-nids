@@ -19,7 +19,6 @@ Date   : March 21, 2026
 from __future__ import annotations
 
 import math
-import statistics
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -502,7 +501,6 @@ def vector_to_dict(vec: np.ndarray) -> Dict[str, float]:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import json
 
     print("=== AI-NIDS FeatureExtractor — Smoke Test ===\n")
 
@@ -544,7 +542,7 @@ if __name__ == "__main__":
     print(f"SYN count  : {feat['syn_flag_count']:.0f}")
     print(f"FIN count  : {feat['fin_flag_count']:.0f}")
     print(f"Down/Up    : {feat['down_up_ratio']:.4f}")
-    print(f"\nAll 41 features (raw, un-normalised):")
+    print("\nAll 41 features (raw, un-normalised):")
     for name, val in feat.items():
         print(f"  {name:<35} {val:.6f}")
 

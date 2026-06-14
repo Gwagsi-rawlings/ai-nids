@@ -56,8 +56,8 @@ import math
 import logging
 import threading
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 
@@ -174,7 +174,6 @@ def _build_lstm_arch():
     Recreate the LSTMClassifier architecture so we can load a state_dict.
     Kept here to avoid importing train_lstm.py as a module.
     """
-    import torch
     import torch.nn as nn
 
     class LSTMClassifier(nn.Module):

@@ -15,7 +15,6 @@ April 3, 2026 | Sprint 1, Week 4
 
 from datetime import datetime
 from typing import List, Optional, Union
-from uuid import UUID
 
 import enum
 
@@ -28,7 +27,7 @@ class DetectionMethod(str, enum.Enum):
     HYBRID      = "HYBRID"
 
 
-from pydantic import BaseModel, Field, field_validator, computed_field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ─────────────────────────────────────────────

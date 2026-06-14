@@ -43,7 +43,7 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional
 
 logger = logging.getLogger("ai-nids.alert_generator")

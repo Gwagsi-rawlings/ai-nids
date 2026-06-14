@@ -18,19 +18,16 @@ FR Traceability:
 March 24, 2026 | Sprint 1 | Developer: GWAGSI Rawlings Nshom
 """
 
-import time
 import asyncio
 from dataclasses import dataclass
 from typing import Optional
 
-import pytest
 import numpy as np
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.l2 import Ether
 
 from capture.packet_capture import PacketParser, PacketCapture
 from capture.feature_extractor import FlowAggregator, FeatureExtractor
-from capture.rule_parser import parse_rule, RuleParser, load_rules
 
 
 # ---------------------------------------------------------------------------

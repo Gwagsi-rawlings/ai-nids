@@ -42,7 +42,6 @@ def test_feature_extractor_latency(benchmark):
     from scapy.layers.inet import IP, TCP
     from scapy.layers.l2 import Ether
     from backend.capture.pipeline import DetectionPipeline
-    import asyncio
     agg = FlowAggregator()
     feat = FeatureExtractor()
     pkts = [

@@ -34,9 +34,7 @@ import os
 import sys
 import time
 import uuid
-from dataclasses import dataclass
-from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -685,7 +683,8 @@ class TestPipelineSmoke:
     @staticmethod
     def _install_pipeline_import_patches():
         """Inject stub modules for every `from backend.X import Y` in pipeline.py."""
-        import sys, types
+        import sys
+        import types
 
         for mod_name in [
             "backend",
@@ -833,7 +832,6 @@ class TestPipelineSmoke:
         captured here in the async context and closed over by patched_stage1,
         so the worker thread never calls any asyncio loop-discovery API.
         """
-        import asyncio
         from scapy.all import rdpcap
 
         # Capture loop in async context — guaranteed to be running here.

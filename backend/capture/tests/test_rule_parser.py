@@ -17,9 +17,7 @@ FR Traceability:
 March 24, 2026 | Sprint 1 | Developer: GWAGSI Rawlings Nshom
 """
 
-import tempfile
 import textwrap
-from pathlib import Path
 
 import pytest
 
@@ -30,9 +28,6 @@ from capture.rule_parser import (
     load_rules_directory,
     rule_severity,
     SignatureRule,
-    CLASSTYPE_SEVERITY,
-    PRIORITY_SEVERITY,
-    # Class-based API
     RuleParser,
     RuleRecord,
 )
